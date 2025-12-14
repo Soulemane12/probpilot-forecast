@@ -1,5 +1,15 @@
 import Groq from "groq-sdk";
 
+function respond(res: any, status: number, body: any) {
+  if (res && typeof res.status === "function") {
+    return res.status(status).json(body);
+  }
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 type Stance =
   | "supports"
   | "weak_supports"
@@ -130,7 +140,7 @@ export async function POST(req: Request, res?: any) {
   try {
     if (!process.env.GROQ_API_KEY) {
       const err = { error: "Missing GROQ_API_KEY" };
-      return res ? res.status(500).json(err) : new Response(JSON.stringify(err), { status: 500 });
+      return respond(res, 500, err);
     }
 
     const body = await req.json();
@@ -142,7 +152,7 @@ export async function POST(req: Request, res?: any) {
 
     if (!marketId || !marketTitle || !Number.isFinite(marketProb)) {
       const err = { error: "marketId, marketTitle, marketProb required" };
-      return res ? res.status(400).json(err) : new Response(JSON.stringify(err), { status: 400 });
+      return respond(res, 400, err);
     }
 
     const p = clamp(marketProb, 0.01, 0.99);
@@ -251,9 +261,9 @@ const payload = {
       rationale,
     };
 
-    return res ? res.json(payload) : new Response(JSON.stringify(payload), { status: 200 });
+    return respond(res, 200, payload);
   } catch (e: any) {
     const err = { error: "Server error", detail: String(e) };
-    return res ? res.status(500).json(err) : new Response(JSON.stringify(err), { status: 500 });
+    return respond(res, 500, err);
   }
 }
