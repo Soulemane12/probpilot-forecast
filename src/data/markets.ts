@@ -9,6 +9,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Kalshi',
     marketProb: 0.342,
+    yesAsk: 0.35,
+    yesBid: 0.33,
     volume24h: 1250000,
     lastUpdated: '2025-01-10T14:30:00Z',
     description: 'Will the Federal Reserve announce a rate cut at their January 2025 FOMC meeting?'
@@ -21,6 +23,8 @@ export const markets: Market[] = [
     status: 'closed',
     exchange: 'Polymarket',
     marketProb: 0.523,
+    yesAsk: 0.53,
+    yesBid: 0.52,
     volume24h: 8500000,
     lastUpdated: '2024-11-06T03:00:00Z',
     description: 'Will Donald Trump win the 2024 US Presidential Election?'
@@ -33,6 +37,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Kalshi',
     marketProb: 0.456,
+    yesAsk: 0.47,
+    yesBid: 0.44,
     volume24h: 2340000,
     lastUpdated: '2025-01-10T12:00:00Z',
     description: 'Will Bitcoin price exceed $100,000 USD before the end of Q1 2025?'
@@ -45,6 +51,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Kalshi',
     marketProb: 0.678,
+    yesAsk: 0.69,
+    yesBid: 0.66,
     volume24h: 45000,
     lastUpdated: '2025-01-10T08:00:00Z',
     description: 'Will Los Angeles receive more than 2 inches of rainfall in January 2025?'
@@ -57,6 +65,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Polymarket',
     marketProb: 0.123,
+    yesAsk: 0.13,
+    yesBid: 0.11,
     volume24h: 890000,
     lastUpdated: '2025-01-10T16:00:00Z',
     description: 'Will Taylor Swift perform during the Super Bowl LIX halftime show?'
@@ -69,6 +79,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Metaculus',
     marketProb: 0.234,
+    yesAsk: 0.25,
+    yesBid: 0.22,
     volume24h: 156000,
     lastUpdated: '2025-01-10T10:00:00Z',
     description: 'Will OpenAI publicly release a model called GPT-5 before April 1, 2025?'
@@ -81,6 +93,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Kalshi',
     marketProb: 0.712,
+    yesAsk: 0.72,
+    yesBid: 0.70,
     volume24h: 3200000,
     lastUpdated: '2025-01-10T15:30:00Z',
     description: 'Will the S&P 500 index close above 6000 at any point in 2025?'
@@ -93,6 +107,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Metaculus',
     marketProb: 0.289,
+    yesAsk: 0.30,
+    yesBid: 0.28,
     volume24h: 567000,
     lastUpdated: '2025-01-10T11:00:00Z',
     description: 'Will there be an official ceasefire agreement between Ukraine and Russia before July 2025?'
@@ -105,6 +121,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Kalshi',
     marketProb: 0.445,
+    yesAsk: 0.46,
+    yesBid: 0.43,
     volume24h: 78000,
     lastUpdated: '2025-01-10T09:00:00Z',
     description: 'Will New York City receive more than 10 inches of snow in February 2025?'
@@ -117,6 +135,8 @@ export const markets: Market[] = [
     status: 'closed',
     exchange: 'Polymarket',
     marketProb: 0.823,
+    yesAsk: 0.83,
+    yesBid: 0.82,
     volume24h: 234000,
     lastUpdated: '2024-03-11T04:00:00Z',
     description: 'Will Oppenheimer win the Academy Award for Best Picture?'
@@ -129,6 +149,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Metaculus',
     marketProb: 0.567,
+    yesAsk: 0.58,
+    yesBid: 0.55,
     volume24h: 423000,
     lastUpdated: '2025-01-10T13:00:00Z',
     description: 'Will SpaceX complete a successful Starship orbital flight by the end of Q2 2025?'
@@ -141,6 +163,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Kalshi',
     marketProb: 0.312,
+    yesAsk: 0.32,
+    yesBid: 0.30,
     volume24h: 890000,
     lastUpdated: '2025-01-10T07:00:00Z',
     description: 'Will the European Union officially enter a recession in 2025?'
@@ -153,6 +177,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Metaculus',
     marketProb: 0.045,
+    yesAsk: 0.05,
+    yesBid: 0.04,
     volume24h: 1234000,
     lastUpdated: '2025-01-10T06:00:00Z',
     description: 'Will China initiate significant military action against Taiwan in 2025?'
@@ -165,6 +191,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Kalshi',
     marketProb: 0.234,
+    yesAsk: 0.25,
+    yesBid: 0.22,
     volume24h: 167000,
     lastUpdated: '2025-01-10T05:00:00Z',
     description: 'Will a Category 5 hurricane make landfall in the continental US in 2025?'
@@ -177,6 +205,8 @@ export const markets: Market[] = [
     status: 'open',
     exchange: 'Other',
     marketProb: 0.456,
+    yesAsk: 0.47,
+    yesBid: 0.44,
     volume24h: 45000,
     lastUpdated: '2025-01-10T14:00:00Z',
     description: 'Will Netflix release Stranger Things Season 5 before August 2025?'
@@ -189,6 +219,8 @@ export const markets: Market[] = [
     status: 'closed',
     exchange: 'Metaculus',
     marketProb: 0.678,
+    yesAsk: 0.69,
+    yesBid: 0.67,
     volume24h: 345000,
     lastUpdated: '2024-02-28T12:00:00Z',
     description: 'Will Apple officially cancel their autonomous vehicle project?'
