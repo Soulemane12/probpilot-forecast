@@ -41,11 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithEmail = async (email: string) => {
-    if (!supabase) throw new Error('Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+    if (!supabase) {
+      throw new Error(
+        'Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or NEXT_PUBLIC_ equivalents).',
+      );
+    }
 
     const redirectBase =
-      (typeof window !== 'undefined' && window.location.origin) ||
       import.meta.env.VITE_SITE_URL ||
+      import.meta.env.SITE_URL ||
+      (typeof window !== 'undefined' && window.location.origin) ||
       'http://localhost:5173';
 
     const { error } = await supabase.auth.signInWithOtp({

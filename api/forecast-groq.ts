@@ -91,24 +91,39 @@ function buildFallbackDrivers(evidence: CompactEvidenceItem[]): Impact[] {
 function buildRationale(drivers: Impact[], modelProb: number, marketProb: number) {
   const leaning =
     modelProb > marketProb
-      ? "Evidence tilts above the market"
+      ? "Model leans above market price"
       : modelProb < marketProb
-        ? "Evidence leans below the market"
-        : "Evidence keeps the view aligned with the market";
+        ? "Model leans below market price"
+        : "Model stays close to market price";
 
   if (!drivers.length) {
-    return `${leaning}. Used available sources to anchor the forecast.`;
+    return `${leaning}. Anchored to current price with limited directional signal.`;
   }
 
-  const highlights = drivers
-    .slice(0, 3)
-    .map((d) => {
-      const reason = (d.reason || d.id || "evidence").trim();
-      return `${d.stance || "neutral"}: ${reason}`;
-    })
-    .join("; ");
+  const formatDriver = (d: Impact) => {
+    const reason = (d.reason || d.id || "evidence").replace(/\s+/g, " ").trim().slice(0, 140);
+    const stance = d.stance || "neutral";
+    return `${stance}: ${reason}`;
+  };
 
-  return `${leaning}. Key signals: ${highlights}`;
+  const supports = drivers.filter((d) => (d.stance || "").includes("support"));
+  const contradicts = drivers.filter((d) => (d.stance || "").includes("contradict"));
+  const neutralish = drivers.filter(
+    (d) => !supports.includes(d) && !contradicts.includes(d)
+  );
+
+  const parts: string[] = [];
+  if (supports.length) {
+    parts.push(`Support: ${supports.slice(0, 2).map(formatDriver).join("; ")}`);
+  }
+  if (contradicts.length) {
+    parts.push(`Headwinds: ${contradicts.slice(0, 2).map(formatDriver).join("; ")}`);
+  }
+  if (!parts.length && neutralish.length) {
+    parts.push(`Context: ${neutralish.slice(0, 2).map(formatDriver).join("; ")}`);
+  }
+
+  return `${leaning}. ${parts.join(" ")}`.trim();
 }
 
 export async function POST(req: Request, res?: any) {

@@ -62,6 +62,8 @@ export default function MarketDetail() {
 
     setIsForecasting(true);
     try {
+      let evidenceForForecast = evidenceItems;
+
       // First, run evidence scan if no evidence exists
       if (evidenceItems.length === 0) {
         toast({
@@ -81,7 +83,8 @@ export default function MarketDetail() {
         if (!evidenceRes.ok) throw new Error(`Evidence scan failed: ${evidenceRes.status}`);
 
         const evidenceData = await evidenceRes.json();
-        setEvidenceItems(evidenceData.evidence);
+        evidenceForForecast = evidenceData.evidence ?? [];
+        setEvidenceItems(evidenceForForecast);
       }
 
       // Now run forecast
@@ -101,7 +104,7 @@ export default function MarketDetail() {
           marketTitle: market.title,
           marketProb: market.yesMid || 0.5,
           spread: market.spread || undefined,
-          evidence: evidenceItems,
+          evidence: evidenceForForecast,
           delta24h: market.delta24h || 0,
         }),
       });

@@ -490,24 +490,40 @@ async function handleForecastGroq(req, res) {
     const buildRationale = (drivers, modelProb, marketProb) => {
       const leaning =
         modelProb > marketProb
-          ? "Evidence tilts above the market"
+          ? "Model leans above market price"
           : modelProb < marketProb
-            ? "Evidence leans below the market"
-            : "Evidence keeps the view aligned with the market";
+            ? "Model leans below market price"
+            : "Model stays close to market price";
 
       if (!drivers.length) {
-        return `${leaning}. Used available sources to anchor the forecast.`;
+        return `${leaning}. Anchored to current price with limited directional signal.`;
       }
 
-      const highlights = drivers
-        .slice(0, 3)
-        .map((d) => {
-          const reasonText = (d && d.reason ? String(d.reason) : "").trim() || (d.id ? String(d.id) : "evidence");
-          return `${d.stance || "neutral"}: ${reasonText}`;
-        })
-        .join("; ");
+      const formatDriver = (d) => {
+        const reasonText =
+          (d && d.reason ? String(d.reason) : "").replace(/\s+/g, " ").trim() ||
+          (d && d.id ? String(d.id) : "evidence");
+        const reason = reasonText.slice(0, 140);
+        const stance = d && d.stance ? d.stance : "neutral";
+        return `${stance}: ${reason}`;
+      };
 
-      return `${leaning}. Key signals: ${highlights}`;
+      const supports = drivers.filter((d) => (d?.stance || "").includes("support"));
+      const contradicts = drivers.filter((d) => (d?.stance || "").includes("contradict"));
+      const neutralish = drivers.filter((d) => !supports.includes(d) && !contradicts.includes(d));
+
+      const parts = [];
+      if (supports.length) {
+        parts.push(`Support: ${supports.slice(0, 2).map(formatDriver).join("; ")}`);
+      }
+      if (contradicts.length) {
+        parts.push(`Headwinds: ${contradicts.slice(0, 2).map(formatDriver).join("; ")}`);
+      }
+      if (!parts.length && neutralish.length) {
+        parts.push(`Context: ${neutralish.slice(0, 2).map(formatDriver).join("; ")}`);
+      }
+
+      return `${leaning}. ${parts.join(" ")}`.trim();
     };
 
     const p = clamp(marketProb, 0.01, 0.99);

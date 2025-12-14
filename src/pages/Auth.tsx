@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { supabase } from '@/lib/supabase';
 
 export default function Auth() {
   const { user, loading, signInWithEmail, signOut } = useAuth();
@@ -27,6 +29,14 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+    if (!supabase) {
+      toast({
+        title: 'Supabase not configured',
+        description: 'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       await signInWithEmail(email);
@@ -67,6 +77,15 @@ export default function Auth() {
             <CardTitle>Supabase Auth</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {!supabase && (
+              <Alert variant="destructive">
+                <AlertTitle>Supabase is not configured</AlertTitle>
+                <AlertDescription>
+                  Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or NEXT_PUBLIC_ equivalents) to your
+                  environment and include https://probpilot.vercel.app/auth in Supabase redirect URLs.
+                </AlertDescription>
+              </Alert>
+            )}
             {user ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary border border-border/60">
