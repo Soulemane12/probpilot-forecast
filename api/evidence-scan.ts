@@ -1,10 +1,14 @@
-// Simple response interface for Express.js
-function NextResponse(data: any) {
-  return {
-    json: (body: any) => body
-  };
-}
 import Groq from "groq-sdk";
+
+function respond(res: any, status: number, body: any) {
+  if (res && typeof res.status === "function") {
+    return res.status(status).json(body);
+  }
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 type TavilySearchResult = {
   title: string;
@@ -59,7 +63,7 @@ export async function POST(req: Request, res?: any) {
     const maxResults = Math.min(Number(body.max_results ?? 10), 12);
 
     if (!marketId || !marketTitle) {
-      return res?.status(400).json({ error: "marketId and marketTitle are required" });
+      return respond(res, 400, { error: "marketId and marketTitle are required" });
     }
 
     const stubResults: TavilySearchResult[] = [
@@ -153,7 +157,7 @@ export async function POST(req: Request, res?: any) {
       });
 
     if (mapped.length === 0) {
-      return res?.json({ evidence: [] });
+      return respond(res, 200, { evidence: [] });
     }
 
     // 2) Groq classify stances in ONE call (optional; fallback to neutral if missing)
@@ -209,7 +213,15 @@ export async function POST(req: Request, res?: any) {
     }
 
     if (!parsed) {
-      parsed = { items: mapped.map((m) => ({ id: m.id, stance: "neutral", confidence: 0, rationale: "", claim: "" })) };
+      parsed = {
+        items: mapped.map((m) => ({
+          id: m.id,
+          stance: "neutral",
+          confidence: 0,
+          rationale: "",
+          claim: "",
+        })),
+      };
     }
 
     const byId = new Map<string, GroqStanceItem>();
@@ -246,8 +258,8 @@ export async function POST(req: Request, res?: any) {
       };
     });
 
-    return res?.json({ evidence });
+    return respond(res, 200, { evidence });
   } catch (e: any) {
-    return res?.status(500).json({ error: "Server error", detail: String(e) });
+    return respond(res, 500, { error: "Server error", detail: String(e) });
   }
 }
