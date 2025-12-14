@@ -27,6 +27,16 @@ type Impact = {
   reason: string;
 };
 
+type CompactEvidenceItem = {
+  id: string;
+  source?: string;
+  title?: string;
+  stance?: string;
+  reliability?: number;
+  age_hours?: number;
+  snippet?: string;
+};
+
 function clamp(x: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, x));
 }
@@ -55,6 +65,50 @@ function computeMaxShift(evidence: { stance: string; reliability: number }[]) {
   if (n < 2 || avgRel < 55) return 0.03;
   if (n < 4 || avgRel < 70) return 0.08;
   return 0.15;
+}
+
+function buildFallbackDrivers(evidence: CompactEvidenceItem[]): Impact[] {
+  const ranked = evidence
+    .filter((e) => e?.id)
+    .filter((e) => e.stance !== "irrelevant" && e.stance !== "uncertain")
+    .sort((a, b) => (b.reliability ?? 0) - (a.reliability ?? 0));
+
+  const pool = ranked.length ? ranked : evidence;
+
+  return pool.slice(0, 4).map((e) => {
+    const source = (e.source || "source").trim();
+    const title = (e.title || "evidence").trim();
+    const hasReliability = typeof e.reliability === "number" && Number.isFinite(e.reliability);
+    return {
+      id: String(e.id),
+      stance: e.stance ? String(e.stance) : "neutral",
+      weight: hasReliability ? Math.round(e.reliability) / 100 : undefined,
+      reason: `${source}: ${title}`.slice(0, 160),
+    };
+  });
+}
+
+function buildRationale(drivers: Impact[], modelProb: number, marketProb: number) {
+  const leaning =
+    modelProb > marketProb
+      ? "Evidence tilts above the market"
+      : modelProb < marketProb
+        ? "Evidence leans below the market"
+        : "Evidence keeps the view aligned with the market";
+
+  if (!drivers.length) {
+    return `${leaning}. Used available sources to anchor the forecast.`;
+  }
+
+  const highlights = drivers
+    .slice(0, 3)
+    .map((d) => {
+      const reason = (d.reason || d.id || "evidence").trim();
+      return `${d.stance || "neutral"}: ${reason}`;
+    })
+    .join("; ");
+
+  return `${leaning}. Key signals: ${highlights}`;
 }
 
 export async function POST(req: Request, res?: any) {
@@ -104,16 +158,15 @@ const system = [
       "",
       "Hard rules:",
       "1) Always output model_prob_0_1 in [0.01, 0.99]. Never refuse. Never ask questions.",
-      "2) Do NOT use these substrings anywhere: lack of evidence | insufficient evidence | not enough evidence | limited evidence | cannot determine | no data.",
-      "3) If evidence is weak/neutral/mixed, still output a probability: keep it near prior and lower confidence. Use 'small update toward/away from prior' wording instead.",
+      "2) Never say anything about missing/limited/insufficient evidence. Use whatever evidence is provided.",
+      "3) Base the update on evidence direction, recency, and reliability; do NOT mention priors in the rationale.",
       "4) Enforce: abs(model_prob_0_1 - market_prior_yes) <= max_shift.",
       "",
       "Output rules:",
       "- top_drivers: 2–4 items, each must reference an evidence id exactly.",
-  "- rationale must mention prior explicitly as: 'prior=<number>'.",
-  "- rationale must not mention evidence quantity; talk about direction/recency/reliability instead.",
-  "",
-  "Schema (exact keys):",
+  "- rationale must summarize evidence direction/recency/reliability without mentioning evidence quantity, availability, or priors.",
+      "",
+      "Schema (exact keys):",
   '{\"model_prob_0_1\": number, \"overall_confidence\": number, \"top_drivers\":[{\"id\":string,\"stance\":\"supports\"|\"contradicts\"|\"neutral\",\"weight\":number,\"reason\":string}], \"notes\": string}',
 ].join("\n");
 
@@ -145,7 +198,7 @@ const system = [
 
     if (banned.test(content)) {
       const second = await callGroq(
-        "Your previous output included banned phrases. Rewrite WITHOUT those substrings. Keep meaning. Obey schema. Do not mention evidence quantity."
+        "Your previous output included banned phrases. Rewrite WITHOUT those substrings. Keep meaning. Obey schema. Do not mention evidence quantity or priors."
       );
       content = second.choices?.[0]?.message?.content ?? content;
     }
@@ -158,20 +211,17 @@ const notes = String(parsed?.notes ?? "").slice(0, 240);
 const topDrivers: Impact[] = Array.isArray(parsed?.top_drivers)
   ? parsed.top_drivers.slice(0, 5).map((d: any) => ({
           id: d.id ? String(d.id) : undefined,
-          reason: String(d.reason ?? "").slice(0, 160),
+          reason: (String(d.reason ?? "").trim() || (d.id ? `Evidence ${d.id}` : "Evidence")).slice(0, 160),
           stance: d.stance ? String(d.stance) : undefined,
         weight: typeof d.weight === "number" ? d.weight : undefined,
       }))
   : [];
+if (topDrivers.length === 0 && compactEvidence.length > 0) {
+  topDrivers.push(...buildFallbackDrivers(compactEvidence));
+}
 const modelProb = clamp(modelProbRaw, Math.max(0.01, p - maxShift), Math.min(0.99, p + maxShift));
 const delta = modelProb - p;
-const rationale =
-  topDrivers.length > 0
-    ? `prior=${p.toFixed(2)} | ` +
-      topDrivers
-        .map((d) => `${d.stance || "neutral"} on ${d.id || "evidence"} (${d.reason})`)
-        .join("; ")
-    : `prior=${p.toFixed(2)} | small update near prior based on available evidence`;
+const rationale = buildRationale(topDrivers, modelProb, p);
 
 const payload = {
   marketId,

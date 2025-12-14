@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Market, ForecastRun } from '@/types';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBilling } from '@/contexts/BillingContext';
 import { 
   formatPercent, 
   formatDelta, 
@@ -17,6 +19,7 @@ import {
 } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { PaywallModal } from '@/components/modals/PaywallModal';
+import { UpgradeButton } from '@/components/billing/UpgradeButton';
 
 interface ForecastPanelProps {
   market: Market;
@@ -80,6 +83,8 @@ function getRecommendation(modelProb: number, marketProb: number, confidence: 'l
 
 export function ForecastPanel({ market, latestForecast, onRunForecast, isForecasting }: ForecastPanelProps) {
   const { entitlements } = useApp();
+  const { forecastsRemaining, loaded: billingLoaded } = useBilling();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -169,7 +174,15 @@ export function ForecastPanel({ market, latestForecast, onRunForecast, isForecas
 
           {/* Usage indicator */}
           <div className="text-xs text-muted-foreground text-center">
-            {entitlements.forecastsUsedToday} / {entitlements.forecastsLimit} forecasts used today
+            {billingLoaded ? (
+              forecastsRemaining > 0 ? (
+                `${forecastsRemaining} forecasts remaining`
+              ) : (
+                "No forecasts remaining"
+              )
+            ) : (
+              "Loading..."
+            )}
           </div>
 
           {latestForecast?.rationale && (

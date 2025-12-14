@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
+import { BillingProvider } from "@/contexts/BillingContext";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Markets from "./pages/Markets";
@@ -19,25 +20,27 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <AppProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/home" element={<Landing />} />
-              <Route path="/app" element={<Dashboard />} />
-              <Route path="/markets" element={<Markets />} />
-              <Route path="/markets/:id" element={<MarketDetail />} />
-              <Route path="/watchlist" element={<Watchlist />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AppProvider>
+      <BillingProvider>
+        <AppProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/home" element={<Landing />} />
+                <Route path="/app" element={<Dashboard />} />
+                <Route path="/markets" element={<Markets />} />
+                <Route path="/markets/:id" element={<MarketDetail />} />
+                <Route path="/watchlist" element={<Watchlist />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AppProvider>
+      </BillingProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

@@ -6,9 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { EvidenceItem } from '@/types';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBilling } from '@/contexts/BillingContext';
 import { formatDateTime, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { PaywallModal } from '@/components/modals/PaywallModal';
+import { UpgradeButton } from '@/components/billing/UpgradeButton';
 
 interface EvidencePanelProps {
   evidence?: EvidenceItem[];
@@ -42,6 +45,8 @@ const stanceConfig = {
 
 export function EvidencePanel({ evidence, marketId, marketTitle, onEvidenceChange }: EvidencePanelProps) {
   const { entitlements, setEntitlements } = useApp();
+  const { evidenceScansRemaining, loaded: billingLoaded } = useBilling();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -69,9 +74,21 @@ export function EvidencePanel({ evidence, marketId, marketTitle, onEvidenceChang
     setError(null);
 
     try {
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to scan evidence.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const res = await fetch("/api/evidence-scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-user-id": user.id
+        },
         body: JSON.stringify({
           marketId,
           marketTitle,
@@ -79,6 +96,11 @@ export function EvidencePanel({ evidence, marketId, marketTitle, onEvidenceChang
           max_results: 6,
         }),
       });
+
+      if (res.status === 402) {
+        setShowPaywall(true);
+        return;
+      }
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -157,7 +179,15 @@ export function EvidencePanel({ evidence, marketId, marketTitle, onEvidenceChang
 
           {/* Usage indicator */}
           <div className="text-xs text-muted-foreground text-center">
-            {entitlements.evidenceRunsUsedToday} / {entitlements.evidenceRunsLimit} scans used today
+            {billingLoaded ? (
+              evidenceScansRemaining > 0 ? (
+                `${evidenceScansRemaining} scans remaining`
+              ) : (
+                "No scans remaining"
+              )
+            ) : (
+              "Loading..."
+            )}
           </div>
 
           {error && (

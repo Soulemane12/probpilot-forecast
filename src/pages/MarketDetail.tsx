@@ -10,6 +10,7 @@ import { HistoryTable } from '@/components/forecast/HistoryTable';
 import { SkeletonCard, SkeletonTable } from '@/components/ui/skeleton-card';
 import { ErrorState } from '@/components/ui/error-state';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { evidenceItems } from '@/data/evidence';
 import { formatDate, formatVolume, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +31,7 @@ export default function MarketDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getForecastsByMarket, isInWatchlist, toggleWatchlist, addForecast } = useApp();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
   const [isForecasting, setIsForecasting] = useState(false);
@@ -90,7 +92,10 @@ export default function MarketDetail() {
 
       const res = await fetch("/api/forecast-groq", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || ""
+        },
         body: JSON.stringify({
           marketId: id,
           marketTitle: market.title,
@@ -100,6 +105,15 @@ export default function MarketDetail() {
           delta24h: market.delta24h || 0,
         }),
       });
+
+      if (res.status === 402) {
+        toast({
+          title: "Forecasts exceeded",
+          description: "You've used all your forecasts for this billing period.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 

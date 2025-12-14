@@ -3,7 +3,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
 import { config } from 'dotenv';
-import { Groq } from 'groq-sdk';
+import Groq from "groq-sdk";
+import { flowglad } from "./src/lib/flowglad.js";
 
 // Load environment variables from .env file
 config();
@@ -14,6 +15,35 @@ const __dirname = dirname(__filename);
 const app = express();
 app.use(express.json());
 
+// Helper functions for evidence scan
+function stripJson(s) {
+  return s.replace(/^\s*```json\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+}
+
+function inferSourceType(host) {
+  const h = host.toLowerCase();
+  if (h.includes(".gov") || h.includes(".mil")) return "official";
+  if (h.includes("bloomberg") || h.includes("reuters") || h.includes("apnews") || h.includes("ft.com") || h.includes("wsj.com")) return "tier1";
+  if (h.includes("substack") || h.includes("medium")) return "blog";
+  if (h.includes("youtube") || h.includes("tiktok")) return "video";
+  return "news";
+}
+
+// Helper functions for forecast
+function buildFallbackDrivers(evidence) {
+  return evidence.slice(0, 3).map((e) => ({
+    id: e.id,
+    reason: `${e.sourceName}: ${e.title.slice(0, 100)}...`,
+    stance: e.stance,
+    weight: 0.5,
+  }));
+}
+
+function buildRationale(topDrivers, modelProb, prior) {
+  const driverSummaries = topDrivers.slice(0, 2).map((d) => d.reason).join("; ");
+  return `prior=${prior.toFixed(2)} | ${driverSummaries} | model=${modelProb.toFixed(2)}`;
+}
+
 // Load and execute the evidence-scan function
 const evidenceScanPath = join(__dirname, 'api', 'evidence-scan.ts');
 const evidenceScanCode = readFileSync(evidenceScanPath, 'utf8');
@@ -21,136 +51,185 @@ const evidenceScanCode = readFileSync(evidenceScanPath, 'utf8');
 // Extract the handler function (simplified approach)
 async function handleEvidenceScan(req, res) {
   try {
-    const { marketId, marketTitle, query, max_results } = req.body;
-    
-    const tavilyApiKey = process.env.TAVILY_API_KEY;
-    const groqApiKey = process.env.GROQ_API_KEY;
-    
-    if (!tavilyApiKey) {
-      return res.status(500).json({ error: 'TAVILY_API_KEY not configured' });
-    }
-    if (!groqApiKey) {
-      return res.status(500).json({ error: 'GROQ_API_KEY not configured' });
-    }
-    if (!marketId || !marketTitle) {
-      return res.status(400).json({ error: 'marketId and marketTitle are required' });
-    }
+    const body = req.body;
+    // Allow a default user in dev so the API works without auth headers
+    const userId = req.headers['x-user-id'] || 'dev-user';
 
-    // 1) Tavily search
-    const tavilyRes = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        api_key: tavilyApiKey,
-        query: query || `${marketTitle} latest update official statement report`,
-        max_results: Math.min(Number(max_results || 6), 8),
-        search_depth: 'basic',
-        include_answer: false,
-        include_raw_content: false,
-      }),
-    });
+    // Check Flowglad usage balance
+    const billing = await flowglad(userId).getBilling();
+    const subId = billing.currentSubscription?.id;
+    
+    const usage = billing.checkUsageBalance("evidence_scans");
+    const remaining = usage?.availableBalance ?? 0;
 
-    if (!tavilyRes.ok) {
-      const errorText = await tavilyRes.text();
-      return res.status(502).json({ 
-        error: 'Tavily search failed', 
-        status: tavilyRes.status, 
-        body: errorText 
+    if (!subId || remaining <= 0) {
+      return res.status(402).json({ 
+        error: "Out of evidence scans",
+        code: "USAGE_EXCEEDED"
       });
     }
 
-    const tavilyData = await tavilyRes.json();
-    const results = Array.isArray(tavilyData.results) ? tavilyData.results : [];
+    const marketId = String(body.marketId ?? "");
+    const marketTitle = String(body.marketTitle ?? "");
+    const query = String(body.query ?? `${marketTitle} latest update official statement report`);
+    const maxResults = Math.min(Number(body.max_results ?? 10), 12);
 
-    // Map to evidence items
-    const scanId = Date.now();
-    const mapped = results.slice(0, max_results || 6).map((r, index) => {
-      let sourceName = 'Web';
+    let results = [];
+    if (process.env.TAVILY_API_KEY) {
       try {
-        sourceName = new URL(r.url).hostname.replace(/^www\./, '');
-      } catch {}
+        const tavilyText = await fetch("https://api.tavily.com/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            api_key: process.env.TAVILY_API_KEY,
+            query,
+            max_results: maxResults,
+            search_depth: "advanced",
+            include_answer: false,
+            include_raw_content: false,
+          }),
+        }).then((r) => r.text());
 
-      const reliability = typeof r.score === 'number' 
-        ? Math.round(Math.max(0, Math.min(1, r.score)) * 100) 
-        : 70;
+        const tavilyData = JSON.parse(tavilyText);
+        results = Array.isArray(tavilyData.results) ? tavilyData.results : [];
+      } catch (err) {
+        console.warn("Tavily search failed, using fallback evidence", err?.message || err);
+      }
+    }
 
-      const id = `tavily-${marketId}-${scanId}-${index}`;
+    // Offline/dev fallback evidence if Tavily unavailable
+    if (results.length === 0) {
+      results = [
+        {
+          title: `${marketTitle} update`,
+          url: "https://example.com/dev-evidence",
+          content: `${marketTitle} discussed in recent coverage.`,
+          score: 0.7,
+        },
+        {
+          title: `${marketTitle} counterpoint`,
+          url: "https://example.com/dev-counter",
+          content: `Skeptical take on ${marketTitle}.`,
+          score: 0.6,
+        },
+      ];
+    }
 
-      return {
-        id,
-        marketId,
-        sourceName,
-        title: r.title || r.url,
-        url: r.url,
-        snippet: (r.content || '').slice(0, 500),
-        timestamp: new Date().toISOString(),
-        reliability,
-        stance: 'neutral',
-        stanceConfidence: 0,
-        stanceRationale: '',
-      };
-    });
+    // Map → your EvidenceItem-like objects (add a stable id, dedupe by URL)
+    const scanId = Date.now();
+    const seen = new Set();
+    const mapped = results
+      .filter((r) => {
+        if (!r?.url) return false;
+        const key = r.url.split("#")[0];
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, maxResults)
+      .map((r, index) => {
+        let sourceName = "Web";
+        try {
+          sourceName = new URL(r.url).hostname.replace(/^www\./, "");
+        } catch {}
+
+        const reliability =
+          typeof r.score === "number" ? Math.round(Math.max(0, Math.min(1, r.score)) * 100) : 70;
+
+        const id = `tavily-${marketId}-${scanId}-${index}`;
+
+        return {
+          id,
+          marketId,
+          sourceName,
+          title: r.title || r.url,
+          url: r.url,
+          snippet: (r.content || "").slice(0, 500),
+          timestamp: new Date().toISOString(),
+          reliability,
+          stance: "neutral", // will fill from Groq
+          stanceConfidence: 0,
+          stanceRationale: "",
+          claim: "",
+          sourceType: inferSourceType(sourceName),
+        };
+      });
 
     if (mapped.length === 0) {
       return res.json({ evidence: [] });
     }
 
-    // 2) Groq classify stances
-    const groq = new Groq({ apiKey: groqApiKey });
+    // Classify stance with Groq
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
     const system = [
-      'You are a strict classifier.',
-      'Task: For each source, decide whether it SUPPORTS, CONTRADICTS, or is NEUTRAL toward the YES outcome of the market question.',
-      'Market question should be interpreted as: "YES means the event described by the title happens by the market end date."',
-      'If unclear, unrelated, opinion-only, or not evidence -> neutral.',
-      'CRITICAL: Return ONLY this JSON structure: {"items": [{"id": "source_id", "stance": "supports|contradicts|neutral", "confidence": 0-100, "rationale": "short string"}]}',
-      'Do NOT include any other fields. Do NOT wrap in markdown. Do NOT include the original sources in your response.',
-    ].join(' ');
+      "You are a strict evidence classifier for prediction markets.",
+      "Interpret YES as: the market title happens by the market end date.",
+      "Allowed stances: supports, weak_supports, contradicts, weak_contradicts, neutral, irrelevant, uncertain.",
+      "If unclear, unrelated, or opinion-only -> irrelevant.",
+      "weak_* = tentative or indirect support/contradiction with caveats.",
+      "Extract a single, short factual claim from each source.",
+      "Return ONLY JSON: {\"items\":[{\"id\":\"source_id\",\"claim\":\"short claim\",\"stance\":\"...\",\"confidence\":0-100,\"rationale\":\"short reason\"}]}. No markdown.",
+    ].join(" ");
 
     const user = JSON.stringify({
-      marketTitle,
+      market_question: marketTitle,
       sources: mapped.map((m) => ({
         id: m.id,
         title: m.title,
+        url: m.url,
         snippet: m.snippet,
+        sourceName: m.sourceName,
       })),
-    }) + '\n\nClassify each source and return ONLY: {"items": [{"id": "source_id", "stance": "supports|contradicts|neutral", "confidence": 0-100, "rationale": "short string"}]}';
+      schema: {
+        items: [{
+          id: "string",
+          claim: "short claim",
+          stance: "supports|weak_supports|contradicts|weak_contradicts|neutral|irrelevant|uncertain",
+          confidence: "0-100",
+          rationale: "short string"
+        }],
+      },
+    });
 
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: "llama-3.3-70b-versatile",
       temperature: 0,
+      response_format: { type: "json_object" },
       messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
+        { role: "system", content: system },
+        { role: "user", content: user },
       ],
     });
 
-    const raw = completion.choices?.[0]?.message?.content || '';
-    let parsed = null;
-
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    let parsed;
     try {
-      // Strip JSON fences if present
-      const cleanJson = raw.replace(/^\s*```json\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-      parsed = JSON.parse(cleanJson);
+      parsed = JSON.parse(stripJson(raw));
     } catch {
       // If Groq returns non-JSON, fall back to neutral
-      parsed = { items: mapped.map((m) => ({ id: m.id, stance: 'neutral', confidence: 0, rationale: '' })) };
+      parsed = { items: mapped.map((m) => ({ id: m.id, stance: "neutral", confidence: 0, rationale: "", claim: "" })) };
     }
 
     const byId = new Map();
-    for (const it of parsed.items || []) {
+    for (const it of parsed.items ?? []) {
       if (!it?.id) continue;
-      const stance = (it.stance === 'supports' || it.stance === 'contradicts' || it.stance === 'neutral') 
-        ? it.stance 
-        : 'neutral';
-      const confidence = Math.max(0, Math.min(100, Number(it.confidence || 0)));
+      const stance =
+        it.stance === "supports" ||
+        it.stance === "weak_supports" ||
+        it.stance === "contradicts" ||
+        it.stance === "weak_contradicts" ||
+        it.stance === "neutral" ||
+        it.stance === "irrelevant" ||
+        it.stance === "uncertain"
+          ? it.stance
+          : "neutral";
+      const confidence = Math.max(0, Math.min(100, Number(it.confidence ?? 0)));
       byId.set(it.id, {
-        id: it.id,
         stance,
         confidence,
-        rationale: String(it.rationale || '').slice(0, 140),
+        rationale: String(it.rationale ?? "").slice(0, 140),
+        claim: String((it && it.claim) ?? "").slice(0, 240),
       });
     }
 
@@ -158,10 +237,20 @@ async function handleEvidenceScan(req, res) {
       const cls = byId.get(m.id);
       return {
         ...m,
-        stance: cls?.stance || 'neutral',
-        stanceConfidence: cls?.confidence || 0,
-        stanceRationale: cls?.rationale || '',
+        stance: cls?.stance ?? "neutral",
+        stanceConfidence: cls?.confidence ?? 0,
+        stanceRationale: cls?.rationale ?? "",
+        claim: cls?.claim ?? "",
       };
+    });
+
+    // Record usage with Flowglad after successful scan
+    await flowglad(userId).createUsageEvent({
+      amount: 1,
+      priceSlug: "evidence-scan",
+      subscriptionId: subId,
+      transactionId: crypto.randomUUID(),
+      usageDate: Date.now(),
     });
 
     res.json({ evidence });
@@ -314,13 +403,28 @@ async function handleForecast(req, res) {
   }
 }
 
-app.post('/api/forecast', handleForecast);
-
-// Forecast with Groq impacts endpoint
+// Forecast with Groq impacts endpoint with Flowglad usage enforcement
 async function handleForecastGroq(req, res) {
   try {
     if (!process.env.GROQ_API_KEY) {
       return res.status(500).json({ error: 'Missing GROQ_API_KEY' });
+    }
+
+    // Allow a default user in dev so the API works without auth headers
+    const userId = req.headers['x-user-id'] || 'dev-user';
+
+    // Check Flowglad usage balance
+    const billing = await flowglad(userId).getBilling();
+    const subId = billing.currentSubscription?.id;
+    
+    const usage = billing.checkUsageBalance("forecast_runs");
+    const remaining = usage?.availableBalance ?? 0;
+
+    if (!subId || remaining <= 0) {
+      return res.status(402).json({ 
+        error: "Out of forecasts",
+        code: "USAGE_EXCEEDED"
+      });
     }
 
     const body = req.body;
@@ -363,6 +467,48 @@ async function handleForecastGroq(req, res) {
         return null;
       }
     };
+    const buildFallbackDrivers = (items) => {
+      const ranked = items
+        .filter((e) => e && e.id)
+        .filter((e) => e.stance !== "irrelevant" && e.stance !== "uncertain")
+        .sort((a, b) => (b.reliability ?? 0) - (a.reliability ?? 0));
+
+      const pool = ranked.length ? ranked : items;
+
+      return pool.slice(0, 4).map((e) => {
+        const source = (e.source || "source").trim();
+        const title = (e.title || "evidence").trim();
+        const hasReliability = typeof e.reliability === "number" && Number.isFinite(e.reliability);
+        return {
+          id: String(e.id),
+          stance: e.stance ? String(e.stance) : "neutral",
+          weight: hasReliability ? Math.round(e.reliability) / 100 : undefined,
+          reason: `${source}: ${title}`.slice(0, 160),
+        };
+      });
+    };
+    const buildRationale = (drivers, modelProb, marketProb) => {
+      const leaning =
+        modelProb > marketProb
+          ? "Evidence tilts above the market"
+          : modelProb < marketProb
+            ? "Evidence leans below the market"
+            : "Evidence keeps the view aligned with the market";
+
+      if (!drivers.length) {
+        return `${leaning}. Used available sources to anchor the forecast.`;
+      }
+
+      const highlights = drivers
+        .slice(0, 3)
+        .map((d) => {
+          const reasonText = (d && d.reason ? String(d.reason) : "").trim() || (d.id ? String(d.id) : "evidence");
+          return `${d.stance || "neutral"}: ${reasonText}`;
+        })
+        .join("; ");
+
+      return `${leaning}. Key signals: ${highlights}`;
+    };
 
     const p = clamp(marketProb, 0.01, 0.99);
 
@@ -387,17 +533,16 @@ async function handleForecastGroq(req, res) {
       "",
       "Hard rules:",
       "1) Always output model_prob_0_1 in [0.01, 0.99]. Never refuse. Never ask questions.",
-      "2) NEVER mention evidence quantity or quality. Always work with what you have.",
-      "3) Make a decisive forecast based on EVIDENCE DIRECTION. Use evidence to move away from prior when evidence supports it.",
+      "2) Never say anything about missing/limited/insufficient evidence. Use whatever evidence is provided.",
+      "3) Base the update on evidence direction, recency, and reliability; do NOT mention priors in the rationale.",
       "4) Enforce: abs(model_prob_0_1 - market_prior_yes) <= max_shift.",
       "",
       "Output rules:",
       "- top_drivers: 2–4 items, each must reference an evidence id exactly.",
-      "- rationale must mention prior explicitly as: 'prior=<number>'.",
-      "- Focus on evidence direction and strength, not prior.",
+      "- Rationale must summarize evidence direction/recency/reliability without mentioning evidence quantity, availability, or priors.",
       "",
       "Schema (exact keys):",
-      '{\"model_prob_0_1\": number, \"overall_confidence\": number, \"top_drivers\":[{\"id\":string,\"stance\":\"supports\"|\"contradicts\"|\"neutral\",\"weight\":number,\"reason\":string}], \"notes\": string, \"rationale\": string}',
+      '{\"model_prob_0_1\": number, \"overall_confidence\": number, \"top_drivers\":[{\"id\":string,\"stance\":\"supports\"|\"contradicts\"|\"neutral\",\"weight\":number,\"reason\":string}], \"notes\": string}',
     ].join("\\n");
 
     const maxShift = computeMaxShift(compactEvidence);
@@ -430,7 +575,7 @@ async function handleForecastGroq(req, res) {
 
     if (banned.test(content)) {
       const second = await callGroq(
-        "Your previous output included evidence quantity references. Rewrite WITHOUT mentioning evidence amount. Be decisive with available evidence. Keep meaning. Obey schema."
+        "Your previous output included evidence quantity references. Rewrite WITHOUT mentioning evidence amount or priors. Be decisive with available evidence. Keep meaning. Observe schema."
       );
       content = second.choices?.[0]?.message?.content ?? content;
     }
@@ -444,20 +589,30 @@ async function handleForecastGroq(req, res) {
     const topDrivers = Array.isArray(parsed?.top_drivers)
       ? parsed.top_drivers.slice(0, 5).map((d) => ({
           id: d.id ? String(d.id) : undefined,
-          reason: String(d.reason ?? "").slice(0, 160),
+          reason: (String(d.reason ?? "").trim() || (d.id ? `Evidence ${d.id}` : "Evidence")).slice(0, 160),
           stance: d.stance ? String(d.stance) : undefined,
           weight: typeof d.weight === "number" ? d.weight : undefined,
         }))
       : [];
-    const modelProb = clamp(modelProbRaw, Math.max(0.01, p - maxShift), Math.min(0.99, p + maxShift));
+    if (topDrivers.length === 0 && compactEvidence.length > 0) {
+      topDrivers.push(...buildFallbackDrivers(compactEvidence));
+    }
+    const modelProb = clamp(
+      modelProbRaw,
+      Math.max(0.01, p - maxShift),
+      Math.min(0.99, p + maxShift)
+    );
     const delta = modelProb - p;
-    const rationale =
-      topDrivers.length > 0
-        ? `prior=${p.toFixed(2)} | ` +
-          topDrivers
-            .map((d) => `${d.stance || "neutral"} on ${d.id || "evidence"} (${d.reason})`)
-            .join("; ")
-        : `prior=${p.toFixed(2)} | small update near prior based on available evidence`;
+    const rationale = buildRationale(topDrivers, modelProb, p);
+
+    // Record usage with Flowglad after successful forecast
+    await flowglad(userId).createUsageEvent({
+      amount: 1,
+      priceSlug: "forecast-run",
+      subscriptionId: subId,
+      transactionId: crypto.randomUUID(),
+      usageDate: Date.now(),
+    });
 
     res.json({
       marketId,
