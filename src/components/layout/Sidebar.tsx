@@ -22,12 +22,12 @@ export function Sidebar() {
     <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
+        <NavLink to="/home" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
             <Compass className="w-5 h-5 text-sidebar-primary-foreground" />
           </div>
           <span className="font-semibold text-lg tracking-tight">ProbPilot</span>
-        </div>
+        </NavLink>
       </div>
 
       {/* Navigation */}
@@ -36,7 +36,7 @@ export function Sidebar() {
           {navItems.map((item) => {
             const isActive = location.pathname === item.to || 
               (item.to === '/markets' && location.pathname.startsWith('/markets/')) ||
-              (item.to === '/app' && location.pathname === '/home');
+              (item.to === '/app' && (location.pathname === '/home' || location.pathname === '/app'));
             
             return (
               <li key={item.to}>

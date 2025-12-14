@@ -78,7 +78,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <Card>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/settings')}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -95,7 +95,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/settings')}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -112,7 +112,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/markets')}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-positive/10 flex items-center justify-center">
@@ -126,7 +126,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/markets')}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">

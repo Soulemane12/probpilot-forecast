@@ -19,18 +19,35 @@ type TavilySearchResponse = {
   answer?: string;
 };
 
-type Stance = "supports" | "contradicts" | "neutral";
+type Stance =
+  | "supports"
+  | "weak_supports"
+  | "contradicts"
+  | "weak_contradicts"
+  | "neutral"
+  | "irrelevant"
+  | "uncertain";
 
 type GroqStanceItem = {
   id: string;
   stance: Stance;
   confidence: number; // 0-100
   rationale: string;  // <= 140 chars
+  claim?: string;
 };
 
 function stripJson(s: string) {
   // Remove ```json fences if the model adds them.
   return s.replace(/^\s*```json\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+}
+
+function inferSourceType(host: string) {
+  const h = host.toLowerCase();
+  if (h.includes(".gov") || h.includes(".mil")) return "official";
+  if (h.includes("bloomberg") || h.includes("reuters") || h.includes("apnews") || h.includes("ft.com") || h.includes("wsj.com")) return "tier1";
+  if (h.includes("substack") || h.includes("medium")) return "blog";
+  if (h.includes("youtube") || h.includes("tiktok")) return "video";
+  return "news";
 }
 
 export async function POST(req: Request, res?: any) {
@@ -39,7 +56,7 @@ export async function POST(req: Request, res?: any) {
     const marketId = String(body.marketId ?? "");
     const marketTitle = String(body.marketTitle ?? "");
     const query = String(body.query ?? `${marketTitle} latest update official statement report`);
-    const maxResults = Math.min(Number(body.max_results ?? 6), 8);
+    const maxResults = Math.min(Number(body.max_results ?? 10), 12);
 
     if (!process.env.TAVILY_API_KEY) {
       return res?.status(500).json({ error: "Missing TAVILY_API_KEY" });
@@ -61,7 +78,7 @@ export async function POST(req: Request, res?: any) {
         api_key: process.env.TAVILY_API_KEY,
         query,
         max_results: maxResults,
-        search_depth: "basic",
+        search_depth: "advanced",
         include_answer: false,
         include_raw_content: false,
       }),
@@ -77,33 +94,45 @@ export async function POST(req: Request, res?: any) {
     const tavilyData = JSON.parse(tavilyText) as TavilySearchResponse;
     const results = Array.isArray(tavilyData.results) ? tavilyData.results : [];
 
-    // Map → your EvidenceItem-like objects (add a stable id)
+    // Map → your EvidenceItem-like objects (add a stable id, dedupe by URL)
     const scanId = Date.now();
-    const mapped = results.slice(0, maxResults).map((r, index) => {
-      let sourceName = "Web";
-      try {
-        sourceName = new URL(r.url).hostname.replace(/^www\./, "");
-      } catch {}
+    const seen = new Set<string>();
+    const mapped = results
+      .filter((r) => {
+        if (!r?.url) return false;
+        const key = r.url.split("#")[0];
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, maxResults)
+      .map((r, index) => {
+        let sourceName = "Web";
+        try {
+          sourceName = new URL(r.url).hostname.replace(/^www\./, "");
+        } catch {}
 
-      const reliability =
-        typeof r.score === "number" ? Math.round(Math.max(0, Math.min(1, r.score)) * 100) : 70;
+        const reliability =
+          typeof r.score === "number" ? Math.round(Math.max(0, Math.min(1, r.score)) * 100) : 70;
 
-      const id = `tavily-${marketId}-${scanId}-${index}`;
+        const id = `tavily-${marketId}-${scanId}-${index}`;
 
-      return {
-        id,
-        marketId,
-        sourceName,
-        title: r.title || r.url,
-        url: r.url,
-        snippet: (r.content || "").slice(0, 500),
-        timestamp: new Date().toISOString(),
-        reliability,
-        stance: "neutral" as Stance, // will fill from Groq
-        stanceConfidence: 0,
-        stanceRationale: "",
-      };
-    });
+        return {
+          id,
+          marketId,
+          sourceName,
+          title: r.title || r.url,
+          url: r.url,
+          snippet: (r.content || "").slice(0, 500),
+          timestamp: new Date().toISOString(),
+          reliability,
+          stance: "neutral" as Stance, // will fill from Groq
+          stanceConfidence: 0,
+          stanceRationale: "",
+          claim: "",
+          sourceType: inferSourceType(sourceName),
+        };
+      });
 
     if (mapped.length === 0) {
       return res?.json({ evidence: [] });
@@ -113,11 +142,13 @@ export async function POST(req: Request, res?: any) {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
     const system = [
-      "You are a strict classifier.",
-      "Task: For each source, decide whether it SUPPORTS, CONTRADICTS, or is NEUTRAL toward the YES outcome of the market question.",
-      "Market question should be interpreted as: 'YES means the event described by the title happens by the market end date.'",
-      "If unclear, unrelated, opinion-only, or not evidence -> neutral.",
-      "Return JSON ONLY matching the schema exactly. No markdown. No extra keys.",
+      "You are a strict evidence classifier for prediction markets.",
+      "Interpret YES as: the market title happens by the market end date.",
+      "Allowed stances: supports, weak_supports, contradicts, weak_contradicts, neutral, irrelevant, uncertain.",
+      "If unclear, unrelated, or opinion-only -> irrelevant.",
+      "weak_* = tentative or indirect support/contradiction with caveats.",
+      "Extract a single, short factual claim from each source.",
+      "Return ONLY JSON: {\"items\":[{\"id\":\"source_id\",\"claim\":\"short claim\",\"stance\":\"...\",\"confidence\":0-100,\"rationale\":\"short reason\"}]}. No markdown.",
     ].join(" ");
 
     const user = JSON.stringify({
@@ -130,7 +161,13 @@ export async function POST(req: Request, res?: any) {
         sourceName: m.sourceName,
       })),
       schema: {
-        items: [{ id: "string", stance: "supports|contradicts|neutral", confidence: "0-100", rationale: "short string" }],
+        items: [{
+          id: "string",
+          claim: "short claim",
+          stance: "supports|weak_supports|contradicts|weak_contradicts|neutral|irrelevant|uncertain",
+          confidence: "0-100",
+          rationale: "short string"
+        }],
       },
     });
 
@@ -150,14 +187,20 @@ export async function POST(req: Request, res?: any) {
       parsed = JSON.parse(stripJson(raw));
     } catch {
       // If Groq returns non-JSON, fall back to neutral
-      parsed = { items: mapped.map((m) => ({ id: m.id, stance: "neutral", confidence: 0, rationale: "" })) };
+      parsed = { items: mapped.map((m) => ({ id: m.id, stance: "neutral", confidence: 0, rationale: "", claim: "" })) };
     }
 
     const byId = new Map<string, GroqStanceItem>();
     for (const it of parsed?.items ?? []) {
       if (!it?.id) continue;
       const stance: Stance =
-        it.stance === "supports" || it.stance === "contradicts" || it.stance === "neutral"
+        it.stance === "supports" ||
+        it.stance === "weak_supports" ||
+        it.stance === "contradicts" ||
+        it.stance === "weak_contradicts" ||
+        it.stance === "neutral" ||
+        it.stance === "irrelevant" ||
+        it.stance === "uncertain"
           ? it.stance
           : "neutral";
       const confidence = Math.max(0, Math.min(100, Number(it.confidence ?? 0)));
@@ -166,6 +209,7 @@ export async function POST(req: Request, res?: any) {
         stance,
         confidence,
         rationale: String(it.rationale ?? "").slice(0, 140),
+        claim: String((it as any).claim ?? "").slice(0, 240),
       });
     }
 
@@ -176,6 +220,7 @@ export async function POST(req: Request, res?: any) {
         stance: cls?.stance ?? "neutral",
         stanceConfidence: cls?.confidence ?? 0,
         stanceRationale: cls?.rationale ?? "",
+        claim: cls?.claim ?? "",
       };
     });
 

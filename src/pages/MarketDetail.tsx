@@ -15,6 +15,7 @@ import { formatDate, formatVolume, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useLiveMarkets } from '@/hooks/useLiveMarkets';
 import { EvidenceItem, ForecastRun } from '@/types';
+import { createId } from '@/lib/utils';
 
 const categoryColors: Record<string, string> = {
   economy: 'bg-blue-100 text-blue-700',
@@ -87,7 +88,7 @@ export default function MarketDetail() {
         description: "Analyzing evidence and market data...",
       });
 
-      const res = await fetch("/api/forecast", {
+      const res = await fetch("/api/forecast-groq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -96,6 +97,7 @@ export default function MarketDetail() {
           marketProb: market.yesMid || 0.5,
           spread: market.spread || undefined,
           evidence: evidenceItems,
+          delta24h: market.delta24h || 0,
         }),
       });
 
@@ -105,18 +107,22 @@ export default function MarketDetail() {
       
       // Add forecast to app context
       addForecast({
-        id: `forecast-${id}-${Date.now()}`,
+        id: createId(),
         marketId: id,
         marketTitle: forecast.marketTitle,
         timestamp: forecast.timestamp,
         marketProb: forecast.marketProb,
         modelProb: forecast.modelProb,
         delta: forecast.delta,
-        confidence: forecast.confidence,
+        confidence: (forecast.confidence as any) || 'low',
         confidenceScore: forecast.confidenceScore,
         signal: forecast.signal,
         summary: forecast.summary,
         tags: [], // Empty tags for now
+        overallConfidence: (forecast as any).overallConfidence,
+        notes: (forecast as any).notes,
+        rationale: (forecast as any).rationale,
+        topDrivers: (forecast as any).topDrivers,
       });
 
       toast({

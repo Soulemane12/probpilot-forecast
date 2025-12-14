@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, TrendingUp, TrendingDown, Minus, AlertCircle, Loader2, ThumbsUp, ThumbsDown, CircleDot } from 'lucide-react';
+import { Zap, TrendingUp, TrendingDown, Minus, AlertCircle, Loader2, ThumbsUp, ThumbsDown, CircleDot, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -171,6 +171,39 @@ export function ForecastPanel({ market, latestForecast, onRunForecast, isForecas
           <div className="text-xs text-muted-foreground text-center">
             {entitlements.forecastsUsedToday} / {entitlements.forecastsLimit} forecasts used today
           </div>
+
+          {latestForecast?.rationale && (
+            <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+              <div className="text-xs uppercase text-muted-foreground mb-1">Rationale</div>
+              <p className="text-sm text-foreground">{latestForecast.rationale}</p>
+            </div>
+          )}
+
+          {/* Drivers & notes */}
+          {latestForecast?.topDrivers && latestForecast.topDrivers.length > 0 && (
+            <div className="p-4 rounded-lg bg-secondary/70 border border-border space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Top drivers
+              </div>
+              <div className="space-y-2">
+                {latestForecast.topDrivers.map((d) => (
+                  <div key={d.id} className="flex items-start justify-between gap-2 text-xs">
+                    <div className="flex-1">
+                      <p className="font-medium">{d.reason || 'Driver'}</p>
+                      <p className="text-muted-foreground">
+                        {d.stance ? `${d.stance} · ` : ''}
+                        {d.weight != null ? `weight ${d.weight}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {latestForecast.notes && (
+                <p className="text-xs text-muted-foreground">Notes: {latestForecast.notes}</p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

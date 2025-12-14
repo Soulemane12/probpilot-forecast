@@ -55,6 +55,10 @@ export function formatDelta(delta: number): string {
   return `${sign}${(delta * 100).toFixed(1)}%`;
 }
 
+export function createId(): string {
+  return crypto.randomUUID();
+}
+
 export function generateForecastId(): string {
   return `fr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }

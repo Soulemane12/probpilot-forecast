@@ -2,7 +2,14 @@ export type MarketCategory = 'economy' | 'politics' | 'weather' | 'popculture' |
 export type MarketStatus = 'open' | 'closed';
 export type MarketExchange = 'Kalshi' | 'Metaculus' | 'Polymarket' | 'Other';
 export type ConfidenceLevel = 'low' | 'med' | 'high';
-export type EvidenceStance = 'supports' | 'contradicts' | 'neutral';
+export type EvidenceStance =
+  | 'supports'
+  | 'weak_supports'
+  | 'contradicts'
+  | 'weak_contradicts'
+  | 'neutral'
+  | 'irrelevant'
+  | 'uncertain';
 export type PlanType = 'Free' | 'Pro' | 'Team';
 
 export interface Market {
@@ -21,6 +28,7 @@ export interface Market {
   lastUpdated: string;
   externalUrl?: string;
   description?: string;
+  delta24h?: number; // 24-hour price change
 }
 
 export interface ForecastRun {
@@ -36,6 +44,17 @@ export interface ForecastRun {
   signal?: number;
   summary: string;
   tags: string[];
+  overallConfidence?: number;
+  notes?: string;
+  rationale?: string;
+  topDrivers?: {
+    id?: string;
+    reason: string;
+    stance?: string;
+    weight?: number;
+    logit_delta?: number;
+    confidence?: number;
+  }[];
 }
 
 export interface EvidenceItem {
@@ -48,6 +67,8 @@ export interface EvidenceItem {
   snippet: string;
   timestamp: string;
   reliability: number;
+  claim?: string;
+  sourceType?: string;
   stanceConfidence?: number;
   stanceRationale?: string;
 }

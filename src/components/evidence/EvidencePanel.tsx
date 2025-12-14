@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileSearch, ExternalLink, Loader2, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
+import { FileSearch, ExternalLink, Loader2, ThumbsUp, ThumbsDown, Minus, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,9 +32,13 @@ type TavilySearchResponse = {
 
 const stanceConfig = {
   supports: { label: 'Supports', icon: ThumbsUp, color: 'bg-positive/10 text-positive border-positive/20' },
+  weak_supports: { label: 'Weak Supports', icon: ThumbsUp, color: 'bg-positive/5 text-positive border-positive/10' },
   contradicts: { label: 'Contradicts', icon: ThumbsDown, color: 'bg-negative/10 text-negative border-negative/20' },
+  weak_contradicts: { label: 'Weak Contradicts', icon: ThumbsDown, color: 'bg-negative/5 text-negative border-negative/10' },
   neutral: { label: 'Neutral', icon: Minus, color: 'bg-muted text-muted-foreground' },
-};
+  irrelevant: { label: 'Irrelevant', icon: Minus, color: 'bg-muted text-muted-foreground/80' },
+  uncertain: { label: 'Uncertain', icon: HelpCircle, color: 'bg-muted text-muted-foreground/80' },
+} as const;
 
 export function EvidencePanel({ evidence, marketId, marketTitle, onEvidenceChange }: EvidencePanelProps) {
   const { entitlements, setEntitlements } = useApp();
@@ -166,7 +170,7 @@ export function EvidencePanel({ evidence, marketId, marketTitle, onEvidenceChang
           {items.length > 0 ? (
             <div className="space-y-4 max-h-96 overflow-y-auto">
               {items.map((item) => {
-                const stance = stanceConfig[item.stance];
+                const stance = stanceConfig[item.stance] ?? stanceConfig.neutral;
                 const StanceIcon = stance.icon;
                 
                 return (
