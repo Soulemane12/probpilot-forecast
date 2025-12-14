@@ -13,6 +13,10 @@ export interface Market {
   status: MarketStatus;
   exchange: MarketExchange;
   marketProb: number;
+  yesAsk: number;
+  yesBid: number;
+  yesMid?: number;
+  spread?: number;
   volume24h: number;
   lastUpdated: string;
   externalUrl?: string;
@@ -22,10 +26,14 @@ export interface Market {
 export interface ForecastRun {
   id: string;
   marketId: string;
+  marketTitle: string;
   timestamp: string;
+  marketProb: number;
   modelProb: number;
-  confidence: ConfidenceLevel;
   delta: number;
+  confidence: ConfidenceLevel;
+  confidenceScore: number;
+  signal: number;
   summary: string;
   tags: string[];
 }
@@ -42,6 +50,19 @@ export interface EvidenceItem {
   reliability: number;
   stanceConfidence?: number;
   stanceRationale?: string;
+}
+
+export interface ForecastRun {
+  marketId: string;
+  marketTitle: string;
+  timestamp: string;
+  marketProb: number;
+  modelProb: number;
+  delta: number;
+  confidence: "low" | "med" | "high";
+  confidenceScore: number;
+  signal: number;
+  summary: string;
 }
 
 export interface Entitlements {

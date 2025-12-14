@@ -67,6 +67,10 @@ function normalizeKalshiMarket(raw: KalshiMarket): Market {
     status: isOpen ? 'open' : 'closed',
     exchange: 'Kalshi',
     marketProb: price,
+    yesBid: price * 0.95, // Approximate bid
+    yesAsk: price * 1.05, // Approximate ask
+    yesMid: price,
+    spread: 0.05, // Approximate spread
     volume24h: raw.volume ?? 0,
     lastUpdated: new Date().toISOString(),
     externalUrl,
@@ -114,6 +118,10 @@ function normalizePolymarketMarket(raw: PolymarketGammaMarket): Market {
     status: isClosed ? 'closed' : 'open',
     exchange: 'Polymarket',
     marketProb: probability,
+    yesBid: probability * 0.95, // Approximate bid
+    yesAsk: probability * 1.05, // Approximate ask
+    yesMid: probability,
+    spread: 0.05, // Approximate spread
     volume24h: volume,
     lastUpdated: new Date().toISOString(),
     externalUrl,

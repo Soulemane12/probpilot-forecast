@@ -173,6 +173,117 @@ async function handleEvidenceScan(req, res) {
 
 app.post('/api/evidence-scan', handleEvidenceScan);
 
+// Forecast endpoint
+async function handleForecast(req, res) {
+  try {
+    const body = req.body;
+    const marketId = String(body.marketId ?? "");
+    const marketTitle = String(body.marketTitle ?? "");
+    const marketProb = Number(body.marketProb);
+    const spread = body.spread == null ? null : Number(body.spread);
+    const evidence = Array.isArray(body.evidence) ? body.evidence : [];
+
+    if (!marketId || !marketTitle || !Number.isFinite(marketProb)) {
+      return res.status(400).json({ error: "marketId, marketTitle, marketProb required" });
+    }
+
+    const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+    const hoursSince = (iso) => {
+      const t = Date.parse(iso);
+      if (Number.isNaN(t)) return 999;
+      return (Date.now() - t) / (1000 * 60 * 60);
+    };
+    const recencyWeight = (ageHours) => {
+      const halfLife = 24;
+      return Math.pow(0.5, ageHours / halfLife);
+    };
+    const stanceValue = (s) => {
+      if (s === "supports") return 1;
+      if (s === "contradicts") return -1;
+      return 0;
+    };
+
+    const p = clamp(marketProb, 0.01, 0.99);
+
+    // Weighted evidence signal
+    let num = 0;
+    let den = 0;
+
+    for (const e of evidence) {
+      const v = stanceValue(e.stance);
+      if (v === 0) continue;
+
+      const r = clamp(Number(e.reliability ?? 0), 0, 100) / 100;
+      const age = hoursSince(e.timestamp);
+      const w = r * recencyWeight(age);
+
+      num += w * v;
+      den += w;
+    }
+
+    const signal = den > 0 ? num / den : 0; // ~[-1,+1]
+
+    // Evidence adjustment (max ~12pp)
+    const alpha = 0.12;
+    const qRaw = clamp(p + alpha * signal, 0.01, 0.99);
+
+    // Confidence calculation
+    const nonNeutral = evidence.filter(e => e.stance !== "neutral");
+    const n = nonNeutral.length;
+    const avgRel = n === 0 ? 0 : nonNeutral.reduce((a, e) => a + clamp(e.reliability, 0, 100), 0) / n;
+    const supports = nonNeutral.filter(e => e.stance === "supports").length;
+    const contradicts = nonNeutral.filter(e => e.stance === "contradicts").length;
+    const disagreement = n === 0 ? 1 : Math.min(supports, contradicts) / n;
+    const spreadPenalty = spread == null ? 0 : clamp(spread / 0.05, 0, 1);
+
+    let score = 0;
+    score += clamp(n * 12, 0, 40);
+    score += clamp(avgRel * 0.4, 0, 40);
+    score += (1 - disagreement) * 10;
+    score += (1 - spreadPenalty) * 10;
+    score = clamp(score, 0, 100);
+
+    let confLabel = "low";
+    if (score >= 70) confLabel = "high";
+    else if (score >= 45) confLabel = "med";
+
+    const shrinkFactor = (label) => {
+      if (label === "high") return 1.0;
+      if (label === "med") return 0.7;
+      return 0.4;
+    };
+
+    const q = p + shrinkFactor(confLabel) * (qRaw - p);
+    const modelProb = clamp(q, 0.01, 0.99);
+    const delta = modelProb - p;
+
+    const summary =
+      confLabel === "low"
+        ? "Low confidence: limited/contested evidence; forecast shrunk toward market."
+        : confLabel === "med"
+        ? "Medium confidence: some consistent evidence; moderate adjustment from market."
+        : "High confidence: multiple consistent sources; strong adjustment from market.";
+
+    res.json({
+      marketId,
+      marketTitle,
+      timestamp: new Date().toISOString(),
+      marketProb: p,
+      modelProb,
+      delta,
+      confidence: confLabel,
+      confidenceScore: score,
+      signal,
+      summary,
+    });
+  } catch (error) {
+    console.error('Forecast error:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+app.post('/api/forecast', handleForecast);
+
 const PORT = 3002;
 app.listen(PORT, () => {
   console.log(`Evidence scan server running on http://localhost:${PORT}`);

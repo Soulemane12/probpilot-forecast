@@ -14,6 +14,7 @@ import { evidenceItems } from '@/data/evidence';
 import { formatDate, formatVolume, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useLiveMarkets } from '@/hooks/useLiveMarkets';
+import { EvidenceItem, ForecastRun } from '@/types';
 
 const categoryColors: Record<string, string> = {
   economy: 'bg-blue-100 text-blue-700',
@@ -27,8 +28,10 @@ export default function MarketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getForecastsByMarket, isInWatchlist, toggleWatchlist } = useApp();
+  const { getForecastsByMarket, isInWatchlist, toggleWatchlist, addForecast } = useApp();
   const [isLoading, setIsLoading] = useState(true);
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
+  const [isForecasting, setIsForecasting] = useState(false);
   const { markets: liveMarkets, isLoading: marketsLoading, isError, refetch } = useLiveMarkets();
 
   useEffect(() => {
@@ -49,6 +52,87 @@ export default function MarketDetail() {
       title: inWatchlist ? "Removed from watchlist" : "Added to watchlist",
       description: market?.title,
     });
+  };
+
+  const handleRunForecast = async () => {
+    if (!market || !id) return;
+
+    setIsForecasting(true);
+    try {
+      // First, run evidence scan if no evidence exists
+      if (evidenceItems.length === 0) {
+        toast({
+          title: "Scanning evidence first",
+          description: "Gathering and analyzing sources...",
+        });
+
+        const evidenceRes = await fetch("/api/evidence-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            marketId: id,
+            marketTitle: market.title,
+          }),
+        });
+
+        if (!evidenceRes.ok) throw new Error(`Evidence scan failed: ${evidenceRes.status}`);
+
+        const evidenceData = await evidenceRes.json();
+        setEvidenceItems(evidenceData.evidence);
+      }
+
+      // Now run forecast
+      toast({
+        title: "Generating forecast",
+        description: "Analyzing evidence and market data...",
+      });
+
+      const res = await fetch("/api/forecast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId: id,
+          marketTitle: market.title,
+          marketProb: market.yesMid || 0.5,
+          spread: market.spread || undefined,
+          evidence: evidenceItems,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const forecast: ForecastRun = await res.json();
+      
+      // Add forecast to app context
+      addForecast({
+        id: `forecast-${id}-${Date.now()}`,
+        marketId: id,
+        marketTitle: forecast.marketTitle,
+        timestamp: forecast.timestamp,
+        marketProb: forecast.marketProb,
+        modelProb: forecast.modelProb,
+        delta: forecast.delta,
+        confidence: forecast.confidence,
+        confidenceScore: forecast.confidenceScore,
+        signal: forecast.signal,
+        summary: forecast.summary,
+        tags: [], // Empty tags for now
+      });
+
+      toast({
+        title: "Forecast complete",
+        description: `Model probability: ${(forecast.modelProb * 100).toFixed(1)}%`,
+      });
+    } catch (err) {
+      console.error('Forecast error', err);
+      toast({
+        title: "Forecast failed",
+        description: "There was a problem generating the forecast.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsForecasting(false);
+    }
   };
 
   if (!isLoading && !marketsLoading && !market) {
@@ -161,7 +245,12 @@ export default function MarketDetail() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left: Forecast + History */}
               <div className="lg:col-span-2 space-y-10">
-                <ForecastPanel market={market} latestForecast={latestForecast} />
+                <ForecastPanel 
+                  market={market} 
+                  latestForecast={latestForecast} 
+                  onRunForecast={handleRunForecast}
+                  isForecasting={isForecasting}
+                />
 
                 <div>
                   <h3 className="text-lg font-semibold mb-6">Forecast History</h3>
@@ -171,7 +260,12 @@ export default function MarketDetail() {
 
               {/* Right: Evidence */}
               <div>
-                <EvidencePanel evidence={marketEvidence} marketId={market.id} marketTitle={market.title} />
+                <EvidencePanel 
+                  evidence={marketEvidence} 
+                  marketId={market.id} 
+                  marketTitle={market.title}
+                  onEvidenceChange={setEvidenceItems}
+                />
               </div>
             </div>
           </>

@@ -21,6 +21,8 @@ import { PaywallModal } from '@/components/modals/PaywallModal';
 interface ForecastPanelProps {
   market: Market;
   latestForecast?: ForecastRun;
+  onRunForecast?: () => void;
+  isForecasting?: boolean;
 }
 
 const confidenceConfig = {
@@ -76,46 +78,15 @@ function getRecommendation(modelProb: number, marketProb: number, confidence: 'l
   }
 }
 
-export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
-  const { entitlements, addForecast } = useApp();
+export function ForecastPanel({ market, latestForecast, onRunForecast, isForecasting }: ForecastPanelProps) {
+  const { entitlements } = useApp();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-
-  const handleRunForecast = async () => {
-    if (entitlements.forecastsUsedToday >= entitlements.forecastsLimit) {
-      setShowPaywall(true);
-      return;
-    }
-
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    const modelProb = simulateModelProb(market.marketProb);
-    const newForecast: ForecastRun = {
-      id: generateForecastId(),
-      marketId: market.id,
-      timestamp: new Date().toISOString(),
-      modelProb,
-      confidence: getConfidenceLevel(),
-      delta: modelProb - market.marketProb,
-      summary: `Updated forecast based on latest data analysis. Model sees ${modelProb > market.marketProb ? 'higher' : 'lower'} probability than current market consensus.`,
-      tags: getRandomTags(),
-    };
-
-    addForecast(newForecast);
-    setIsLoading(false);
-    
-    toast({
-      title: "Forecast complete",
-      description: `New probability: ${formatPercent(modelProb)}`,
-    });
-  };
 
   const conf = latestForecast ? confidenceConfig[latestForecast.confidence] : null;
   const ConfIcon = conf?.icon;
   const recommendation = latestForecast 
-    ? getRecommendation(latestForecast.modelProb, market.marketProb, latestForecast.confidence) 
+    ? getRecommendation(latestForecast.modelProb, latestForecast.marketProb, latestForecast.confidence) 
     : null;
   const RecIcon = recommendation?.icon;
 
@@ -133,7 +104,7 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
           <div className="grid grid-cols-2 gap-6">
             <div className="p-5 bg-secondary rounded-lg">
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Market</p>
-              <p className="text-3xl font-bold font-mono">{formatPercent(market.marketProb)}</p>
+              <p className="text-3xl font-bold font-mono">{formatPercent(market.yesMid || market.yesBid)}</p>
             </div>
             <div className="p-5 bg-primary/5 rounded-lg border border-primary/20">
               <p className="text-xs text-primary uppercase tracking-wide mb-2">ProbPilot</p>
@@ -180,10 +151,10 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
           {/* Run button */}
           <Button 
             className="w-full gradient-primary text-primary-foreground"
-            onClick={handleRunForecast}
-            disabled={isLoading || market.status === 'closed'}
+            onClick={onRunForecast}
+            disabled={isForecasting || market.status === 'closed'}
           >
-            {isLoading ? (
+            {isForecasting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Running Forecast...

@@ -23,6 +23,10 @@ export default defineConfig(({ mode }) => ({
         target: "http://localhost:3002",
         changeOrigin: true,
       },
+      "/api/forecast": {
+        target: "http://localhost:3002",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

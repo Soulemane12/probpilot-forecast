@@ -11,9 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { PaywallModal } from '@/components/modals/PaywallModal';
 
 interface EvidencePanelProps {
-  evidence: EvidenceItem[];
+  evidence?: EvidenceItem[];
   marketId: string;
   marketTitle: string;
+  onEvidenceChange?: (items: EvidenceItem[]) => void;
 }
 
 type TavilySearchResult = {
@@ -35,7 +36,7 @@ const stanceConfig = {
   neutral: { label: 'Neutral', icon: Minus, color: 'bg-muted text-muted-foreground' },
 };
 
-export function EvidencePanel({ evidence, marketId, marketTitle }: EvidencePanelProps) {
+export function EvidencePanel({ evidence, marketId, marketTitle, onEvidenceChange }: EvidencePanelProps) {
   const { entitlements, setEntitlements } = useApp();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -91,6 +92,7 @@ export function EvidencePanel({ evidence, marketId, marketTitle }: EvidencePanel
       console.log('Evidence scan results:', tavilyItems);
 
       setItems(tavilyItems);
+      onEvidenceChange?.(tavilyItems);
       setEntitlements(prev => ({
         ...prev,
         evidenceRunsUsedToday: prev.evidenceRunsUsedToday + 1,
