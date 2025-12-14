@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { flowglad } from '@/lib/flowglad';
 
 interface BillingContextType {
   loaded: boolean;
@@ -32,7 +31,19 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     try {
       setLoaded(false);
       setErrors([]);
-      const billingData = await flowglad(user.id).getBilling();
+      const res = await fetch('/api/flowglad-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id,
+        },
+        body: JSON.stringify({ action: 'billing' }),
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Billing fetch failed: ${res.status} ${detail}`);
+      }
+      const billingData = await res.json();
       setBilling(billingData);
       setLoaded(true);
     } catch (error) {
@@ -50,7 +61,19 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error('User not authenticated');
     
     try {
-      return await flowglad(user.id).createCheckoutSession(options);
+      const res = await fetch('/api/flowglad-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id,
+        },
+        body: JSON.stringify({ action: 'checkout', options }),
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Checkout failed: ${res.status} ${detail}`);
+      }
+      return await res.json();
     } catch (error) {
       console.error('Failed to create checkout session:', error);
       throw error;
