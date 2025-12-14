@@ -58,12 +58,13 @@ function normalizeKalshiMarket(raw: KalshiMarket): Market {
   const endDate = raw.close_time ? new Date(raw.close_time).toISOString() : new Date().toISOString();
   const baseTicker = raw.series_ticker ?? raw.event_ticker ?? raw.ticker;
   const externalUrl = baseTicker ? `https://kalshi.com/events/${baseTicker}` : undefined;
+  const isOpen = raw.status === 'active' || raw.status === 'open';
   return {
     id: raw.ticker,
     title: raw.title,
     category: inferCategory(raw.series_ticker ?? raw.event_ticker, raw.title),
     endDate,
-    status: raw.status === 'open' ? 'open' : 'closed',
+    status: isOpen ? 'open' : 'closed',
     exchange: 'Kalshi',
     marketProb: price,
     volume24h: raw.volume ?? 0,
