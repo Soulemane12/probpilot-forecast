@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/kalshi/:path*",
+      "destination": "https://api.elections.kalshi.com/:path*"
+    },
+    {
+      "source": "/api/polymarket/:path*",
+      "destination": "https://gamma-api.polymarket.com/:path*"
+    }
+  ]
+}
