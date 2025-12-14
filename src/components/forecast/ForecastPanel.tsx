@@ -29,32 +29,43 @@ const confidenceConfig = {
   high: { label: 'High Confidence', icon: Zap, color: 'text-positive' },
 };
 
-function getRecommendation(delta: number, confidence: 'low' | 'med' | 'high') {
+function getRecommendation(modelProb: number, marketProb: number, confidence: 'low' | 'med' | 'high') {
+  const delta = modelProb - marketProb;
   const absDelta = Math.abs(delta);
   
-  // Threshold for actionable signal
-  if (absDelta < 0.02) {
+  // Calculate edge as percentage of market price
+  const edgePercent = marketProb > 0 ? (absDelta / marketProb) * 100 : 0;
+  
+  // Need at least 10% edge for a signal
+  if (edgePercent < 10) {
     return {
       action: 'HOLD',
-      description: 'Market is fairly priced',
+      description: 'Edge too small to act',
+      detail: `${edgePercent.toFixed(0)}% edge`,
       color: 'bg-muted text-muted-foreground',
       icon: CircleDot,
     };
   }
   
-  const strength = confidence === 'high' ? 'Strong' : confidence === 'med' ? 'Moderate' : 'Weak';
+  const strengthLabel = edgePercent >= 50 ? 'Strong' : edgePercent >= 25 ? 'Moderate' : 'Slight';
+  const confMultiplier = confidence === 'high' ? 1 : confidence === 'med' ? 0.7 : 0.4;
+  const adjustedEdge = edgePercent * confMultiplier;
   
   if (delta > 0) {
+    // Model thinks more likely → Buy YES (betting it happens)
     return {
       action: 'BUY YES',
-      description: `${strength} signal: Model sees higher probability`,
+      description: `${strengthLabel} edge: Model sees ${(modelProb * 100).toFixed(0)}% vs market ${(marketProb * 100).toFixed(0)}%`,
+      detail: `${edgePercent.toFixed(0)}% edge · ${confidence} conf`,
       color: 'bg-positive/10 text-positive border border-positive/20',
       icon: ThumbsUp,
     };
   } else {
+    // Model thinks less likely → Buy NO (betting it doesn't happen)
     return {
       action: 'BUY NO',
-      description: `${strength} signal: Model sees lower probability`,
+      description: `${strengthLabel} edge: Model sees ${(modelProb * 100).toFixed(0)}% vs market ${(marketProb * 100).toFixed(0)}%`,
+      detail: `${edgePercent.toFixed(0)}% edge · ${confidence} conf`,
       color: 'bg-negative/10 text-negative border border-negative/20',
       icon: ThumbsDown,
     };
@@ -100,7 +111,7 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
   const conf = latestForecast ? confidenceConfig[latestForecast.confidence] : null;
   const ConfIcon = conf?.icon;
   const recommendation = latestForecast 
-    ? getRecommendation(latestForecast.delta, latestForecast.confidence) 
+    ? getRecommendation(latestForecast.modelProb, market.marketProb, latestForecast.confidence) 
     : null;
   const RecIcon = recommendation?.icon;
 
@@ -151,8 +162,11 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
             <div className={cn("p-4 rounded-lg", recommendation.color)}>
               <div className="flex items-center gap-3">
                 <RecIcon className="w-6 h-6" />
-                <div>
-                  <p className="text-lg font-bold">{recommendation.action}</p>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-bold">{recommendation.action}</p>
+                    <span className="text-xs font-mono opacity-70">{recommendation.detail}</span>
+                  </div>
                   <p className="text-sm opacity-80">{recommendation.description}</p>
                 </div>
               </div>
