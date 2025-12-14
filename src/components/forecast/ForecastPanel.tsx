@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, TrendingUp, TrendingDown, Minus, AlertCircle, Loader2 } from 'lucide-react';
+import { Zap, TrendingUp, TrendingDown, Minus, AlertCircle, Loader2, ThumbsUp, ThumbsDown, CircleDot } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,38 @@ const confidenceConfig = {
   high: { label: 'High Confidence', icon: Zap, color: 'text-positive' },
 };
 
+function getRecommendation(delta: number, confidence: 'low' | 'med' | 'high') {
+  const absDelta = Math.abs(delta);
+  
+  // Threshold for actionable signal
+  if (absDelta < 0.02) {
+    return {
+      action: 'HOLD',
+      description: 'Market is fairly priced',
+      color: 'bg-muted text-muted-foreground',
+      icon: CircleDot,
+    };
+  }
+  
+  const strength = confidence === 'high' ? 'Strong' : confidence === 'med' ? 'Moderate' : 'Weak';
+  
+  if (delta > 0) {
+    return {
+      action: 'BUY YES',
+      description: `${strength} signal: Model sees higher probability`,
+      color: 'bg-positive/10 text-positive border border-positive/20',
+      icon: ThumbsUp,
+    };
+  } else {
+    return {
+      action: 'BUY NO',
+      description: `${strength} signal: Model sees lower probability`,
+      color: 'bg-negative/10 text-negative border border-negative/20',
+      icon: ThumbsDown,
+    };
+  }
+}
+
 export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
   const { entitlements, addForecast } = useApp();
   const { toast } = useToast();
@@ -36,15 +68,12 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
   const [showPaywall, setShowPaywall] = useState(false);
 
   const handleRunForecast = async () => {
-    // Check entitlements
     if (entitlements.forecastsUsedToday >= entitlements.forecastsLimit) {
       setShowPaywall(true);
       return;
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     const modelProb = simulateModelProb(market.marketProb);
@@ -70,6 +99,10 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
 
   const conf = latestForecast ? confidenceConfig[latestForecast.confidence] : null;
   const ConfIcon = conf?.icon;
+  const recommendation = latestForecast 
+    ? getRecommendation(latestForecast.delta, latestForecast.confidence) 
+    : null;
+  const RecIcon = recommendation?.icon;
 
   return (
     <>
@@ -110,6 +143,19 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
                   <span>{conf.label}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Trading Recommendation */}
+          {recommendation && RecIcon && (
+            <div className={cn("p-4 rounded-lg", recommendation.color)}>
+              <div className="flex items-center gap-3">
+                <RecIcon className="w-6 h-6" />
+                <div>
+                  <p className="text-lg font-bold">{recommendation.action}</p>
+                  <p className="text-sm opacity-80">{recommendation.description}</p>
+                </div>
+              </div>
             </div>
           )}
 
