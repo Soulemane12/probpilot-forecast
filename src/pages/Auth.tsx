@@ -16,7 +16,7 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   const redirectPath =
-    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/app';
 
   useEffect(() => {
     if (user && !loading) {

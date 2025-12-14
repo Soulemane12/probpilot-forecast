@@ -37,7 +37,7 @@ export default function Landing() {
             <Link to="/auth">Sign in</Link>
           </Button>
           <Button className="gap-2" asChild>
-            <Link to="/home">
+            <Link to="/app">
               Open app
               <ArrowRight className="w-4 h-4" />
             </Link>
@@ -67,7 +67,7 @@ export default function Landing() {
                 </Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link to="/home">View app</Link>
+                <Link to="/app">View app</Link>
               </Button>
             </div>
             <div className="flex flex-wrap gap-4 text-sm text-slate-300">
