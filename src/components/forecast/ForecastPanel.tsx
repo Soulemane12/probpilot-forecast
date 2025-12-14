@@ -30,44 +30,48 @@ const confidenceConfig = {
 };
 
 function getRecommendation(modelProb: number, marketProb: number, confidence: 'low' | 'med' | 'high') {
-  const delta = modelProb - marketProb;
-  const absDelta = Math.abs(delta);
+  // Confidence-dependent thresholds and shrinkage weights
+  const thresholds = { high: 0.03, med: 0.06, low: 0.10 };
+  const weights = { high: 1.0, med: 0.7, low: 0.4 };
   
-  // Calculate edge as percentage of market price
-  const edgePercent = marketProb > 0 ? (absDelta / marketProb) * 100 : 0;
+  const threshold = thresholds[confidence];
+  const w = weights[confidence];
   
-  // Need at least 10% edge for a signal
-  if (edgePercent < 10) {
-    return {
-      action: 'HOLD',
-      description: 'Edge too small to act',
-      detail: `${edgePercent.toFixed(0)}% edge`,
-      color: 'bg-muted text-muted-foreground',
-      icon: CircleDot,
-    };
-  }
+  // Shrink model toward market based on confidence
+  const qAdj = marketProb + w * (modelProb - marketProb);
+  const edge = qAdj - marketProb; // in probability points
+  const rawEdge = modelProb - marketProb;
   
-  const strengthLabel = edgePercent >= 50 ? 'Strong' : edgePercent >= 25 ? 'Moderate' : 'Slight';
-  const confMultiplier = confidence === 'high' ? 1 : confidence === 'med' ? 0.7 : 0.4;
-  const adjustedEdge = edgePercent * confMultiplier;
+  // Relative edge for display
+  const relativeEdge = marketProb > 0 ? rawEdge / marketProb : 0;
+  const edgePP = (rawEdge * 100).toFixed(1); // percentage points
+  const edgeMultiple = relativeEdge.toFixed(2);
   
-  if (delta > 0) {
-    // Model thinks more likely → Buy YES (betting it happens)
+  const detail = `${rawEdge >= 0 ? '+' : ''}${edgePP}pp (${edgeMultiple}×)`;
+  
+  if (edge >= threshold) {
     return {
       action: 'BUY YES',
-      description: `${strengthLabel} edge: Model sees ${(modelProb * 100).toFixed(0)}% vs market ${(marketProb * 100).toFixed(0)}%`,
-      detail: `${edgePercent.toFixed(0)}% edge · ${confidence} conf`,
+      description: `Model sees ${(modelProb * 100).toFixed(0)}% vs market ${(marketProb * 100).toFixed(0)}%`,
+      detail,
       color: 'bg-positive/10 text-positive border border-positive/20',
       icon: ThumbsUp,
     };
-  } else {
-    // Model thinks less likely → Buy NO (betting it doesn't happen)
+  } else if (edge <= -threshold) {
     return {
       action: 'BUY NO',
-      description: `${strengthLabel} edge: Model sees ${(modelProb * 100).toFixed(0)}% vs market ${(marketProb * 100).toFixed(0)}%`,
-      detail: `${edgePercent.toFixed(0)}% edge · ${confidence} conf`,
+      description: `Model sees ${(modelProb * 100).toFixed(0)}% vs market ${(marketProb * 100).toFixed(0)}%`,
+      detail,
       color: 'bg-negative/10 text-negative border border-negative/20',
       icon: ThumbsDown,
+    };
+  } else {
+    return {
+      action: 'HOLD',
+      description: `Edge too small for ${confidence} confidence`,
+      detail,
+      color: 'bg-muted text-muted-foreground',
+      icon: CircleDot,
     };
   }
 }
