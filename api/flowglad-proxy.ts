@@ -26,20 +26,22 @@ function loadFlowgladServer() {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require("@flowglad/server");
     const cls = mod.FlowgladServer || mod.default;
-    return cls || null;
+    return { cls, error: null };
   } catch (err) {
     console.warn("Flowglad load failed", err);
-    return null;
+    return { cls: null, error: err };
   }
 }
 
 export async function POST(req: Request, res?: any) {
   try {
     const secret = process.env.FLOWGLAD_SECRET_KEY;
-    const FlowgladServer = loadFlowgladServer();
+    const { cls: FlowgladServer, error: loadError } = loadFlowgladServer();
 
     if (!secret || !FlowgladServer) {
-      return respond(res, 500, { error: "Flowglad unavailable" });
+      const reason = !secret ? "Missing FLOWGLAD_SECRET_KEY" : "Flowglad module load failed";
+      const detail = loadError ? String(loadError) : undefined;
+      return respond(res, 500, { error: "Flowglad unavailable", reason, detail });
     }
 
     const body = (await req.json()) as FlowgladRequest;
