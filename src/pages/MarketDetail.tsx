@@ -171,7 +171,7 @@ export default function MarketDetail() {
 
               {/* Right: Evidence */}
               <div>
-                <EvidencePanel evidence={marketEvidence} marketId={market.id} />
+                <EvidencePanel evidence={marketEvidence} marketId={market.id} marketTitle={market.title} />
               </div>
             </div>
           </>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileSearch, ExternalLink, Loader2, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,21 @@ import { PaywallModal } from '@/components/modals/PaywallModal';
 interface EvidencePanelProps {
   evidence: EvidenceItem[];
   marketId: string;
+  marketTitle: string;
 }
+
+type TavilySearchResult = {
+  title: string;
+  url: string;
+  content?: string;
+  raw_content?: string;
+  score?: number;
+};
+
+type TavilySearchResponse = {
+  answer?: string;
+  results?: TavilySearchResult[];
+};
 
 const stanceConfig = {
   supports: { label: 'Supports', icon: ThumbsUp, color: 'bg-positive/10 text-positive border-positive/20' },
@@ -21,11 +35,23 @@ const stanceConfig = {
   neutral: { label: 'Neutral', icon: Minus, color: 'bg-muted text-muted-foreground' },
 };
 
-export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
+export function EvidencePanel({ evidence, marketId, marketTitle }: EvidencePanelProps) {
   const { entitlements, setEntitlements } = useApp();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [items, setItems] = useState<EvidenceItem[]>(evidence || []);
+  const [error, setError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  useEffect(() => {
+    // Only reset items from evidence prop if we're not in the middle of scanning
+    // and the evidence prop has content
+    if (!isScanning && evidence && evidence.length > 0) {
+      setItems(evidence);
+    }
+    setError(null);
+  }, [evidence, marketId, isScanning]);
 
   const handleRunEvidence = async () => {
     if (entitlements.evidenceRunsUsedToday >= entitlements.evidenceRunsLimit) {
@@ -34,18 +60,81 @@ export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
     }
 
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setEntitlements(prev => ({
-      ...prev,
-      evidenceRunsUsedToday: prev.evidenceRunsUsedToday + 1
-    }));
-    
-    setIsLoading(false);
-    toast({
-      title: "Evidence scan complete",
-      description: `Found ${evidence.length} relevant sources`,
-    });
+    setIsScanning(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/tavily-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: `${marketTitle} prediction market evidence news`,
+          max_results: 6,
+          search_depth: 'basic',
+          include_answer: false,
+          include_raw_content: false,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = (await res.json()) as TavilySearchResponse;
+      const results = Array.isArray(data.results) ? data.results : [];
+
+      const tavilyItems: EvidenceItem[] = results.map((r, index) => {
+        let hostname = 'Web';
+        try {
+          hostname = new URL(r.url).hostname.replace(/^www\./, '');
+        } catch {
+          // ignore URL parse errors
+        }
+
+        const reliability = typeof r.score === 'number'
+          ? Math.round(Math.max(0, Math.min(1, r.score)) * 100)
+          : 70;
+
+        return {
+          id: `tavily-${marketId}-${index}`,
+          marketId,
+          sourceName: hostname,
+          title: r.title || r.url,
+          url: r.url,
+          stance: 'neutral',
+          snippet: r.content || '',
+          timestamp: new Date().toISOString(),
+          reliability,
+        };
+      });
+
+      console.log('Tavily results:', results);
+      console.log('Mapped evidence items:', tavilyItems);
+
+      setItems(tavilyItems);
+      setEntitlements(prev => ({
+        ...prev,
+        evidenceRunsUsedToday: prev.evidenceRunsUsedToday + 1,
+      }));
+
+      toast({
+        title: "Evidence scan complete",
+        description: `Found ${tavilyItems.length} relevant sources`,
+      });
+    } catch (err) {
+      console.error('Evidence scan error', err);
+      setError('Evidence scan failed. Please try again.');
+      toast({
+        title: "Evidence scan failed",
+        description: "There was a problem contacting the evidence search service.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsScanning(false);
+    }
   };
 
   return (
@@ -88,10 +177,20 @@ export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
             {entitlements.evidenceRunsUsedToday} / {entitlements.evidenceRunsLimit} scans used today
           </div>
 
+          {error && (
+            <div className="text-xs text-destructive text-center">
+              {error}
+            </div>
+          )}
+
           {/* Evidence list */}
-          {evidence.length > 0 ? (
+          {(() => {
+            console.log('Rendering evidence items, count:', items.length);
+            return null;
+          })()}
+          {items.length > 0 ? (
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {evidence.map((item) => {
+              {items.map((item) => {
                 const stance = stanceConfig[item.stance];
                 const StanceIcon = stance.icon;
                 
@@ -138,11 +237,11 @@ export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
           )}
 
           {/* Citations */}
-          {evidence.length > 0 && (
+          {items.length > 0 && (
             <div className="pt-6 border-t border-border">
               <p className="text-xs font-medium text-muted-foreground mb-3">Citations</p>
               <div className="flex flex-wrap gap-2">
-                {evidence.slice(0, 6).map((item, i) => (
+                {items.slice(0, 6).map((item, i) => (
                   <a
                     key={item.id}
                     href={item.url}
