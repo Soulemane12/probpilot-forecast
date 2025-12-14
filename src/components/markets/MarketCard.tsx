@@ -31,14 +31,9 @@ export function MarketCard({ market, disableNavigation = false }: MarketCardProp
   const navigate = useNavigate();
   const { isInWatchlist, toggleWatchlist } = useApp();
   const inWatchlist = isInWatchlist(market.id);
-  const hasExternalLink = Boolean(market.externalUrl);
 
   const goToMarket = () => {
     if (disableNavigation) return;
-    if (hasExternalLink && typeof window !== 'undefined') {
-      window.open(market.externalUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
     navigate(`/markets/${market.id}`);
   };
 

@@ -144,95 +144,35 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Trending Markets */}
-          <div className="lg:col-span-2 space-y-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Flame className="w-5 h-5 text-warning" />
-                Trending Markets
-              </h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/markets')}>
-                View all
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-
-            {isLoading || (marketsLoading && liveMarkets.length === 0) ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <SkeletonCard key={i} />
-                ))}
-              </div>
-            ) : trendingMarkets.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {trendingMarkets.map((market) => (
-                  <MarketCard key={market.id} market={market} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground border border-dashed rounded-lg p-6 text-center">
-                No live markets available yet.
-              </div>
-            )}
+        <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Flame className="w-5 h-5 text-warning" />
+              Trending Markets
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/markets')}>
+              View all
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
           </div>
 
-          {/* Recent Forecasts */}
-          <div className="space-y-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
-                Recent Forecasts
-              </h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/performance')}>
-                View all
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
+          {isLoading || (marketsLoading && liveMarkets.length === 0) ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
-
-            <Card>
-              <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="p-6 space-y-4">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className="h-12 bg-muted rounded animate-shimmer" />
-                    ))}
-                  </div>
-                ) : recentForecasts.length > 0 ? (
-                  <div className="divide-y divide-border">
-                    {recentForecasts.map((forecast) => {
-                      const market = liveMarkets.find(m => m.id === forecast.marketId);
-                      return (
-                        <div
-                          key={forecast.id}
-                          className="p-6 hover:bg-muted/30 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/markets/${forecast.marketId}`)}
-                        >
-                          <p className="text-sm font-medium line-clamp-1 mb-1">
-                            {market?.title || 'Unknown Market'}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">
-                              {formatDateTime(forecast.timestamp)}
-                            </span>
-                            <Badge className={cn("text-xs font-mono", getDeltaBgColor(forecast.delta))}>
-                              {formatDelta(forecast.delta)}
-                            </Badge>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-12 text-center text-muted-foreground">
-                    <Zap className="w-8 h-8 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">No forecasts yet</p>
-                    <p className="text-xs mt-1">Run your first forecast from a market</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          ) : trendingMarkets.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {trendingMarkets.map((market) => (
+                <MarketCard key={market.id} market={market} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground border border-dashed rounded-lg p-6 text-center">
+              No live markets available yet.
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>
