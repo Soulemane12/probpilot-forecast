@@ -47,6 +47,23 @@ type CompactEvidenceItem = {
   snippet?: string;
 };
 
+function makeStubForecast(marketId: string, marketTitle: string, p: number) {
+  const modelProb = clamp(p + 0.01 * (Math.random() - 0.5), 0.01, 0.99);
+  const delta = modelProb - p;
+  return {
+    marketId,
+    marketTitle,
+    timestamp: new Date().toISOString(),
+    marketProb: p,
+    modelProb,
+    delta,
+    overallConfidence: 30,
+    notes: "Stub forecast (LLM offline)",
+    topDrivers: [],
+    rationale: "Model mirrors market due to offline LLM.",
+  };
+}
+
 function clamp(x: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, x));
 }
@@ -138,11 +155,6 @@ function buildRationale(drivers: Impact[], modelProb: number, marketProb: number
 
 export async function POST(req: Request, res?: any) {
   try {
-    if (!process.env.GROQ_API_KEY) {
-      const err = { error: "Missing GROQ_API_KEY" };
-      return respond(res, 500, err);
-    }
-
     const body = await req.json();
     const marketId = String(body.marketId ?? "");
     const marketTitle = String(body.marketTitle ?? "");
@@ -156,6 +168,7 @@ export async function POST(req: Request, res?: any) {
     }
 
     const p = clamp(marketProb, 0.01, 0.99);
+    const useStub = !process.env.GROQ_API_KEY;
 
     const compactEvidence = evidence.slice(0, 12).map((e) => ({
       id: e.id,
@@ -174,6 +187,10 @@ export async function POST(req: Request, res?: any) {
       {} as Record<string, number>
     );
     const maxShift = computeMaxShift(compactEvidence);
+
+    if (useStub) {
+      return respond(res, 200, makeStubForecast(marketId, marketTitle, p));
+    }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -218,17 +235,23 @@ const system = [
       });
     }
 
-    const first = await callGroq();
-    let content = first.choices?.[0]?.message?.content ?? "{}";
+    let parsed = null;
+    try {
+      const first = await callGroq();
+      let content = first.choices?.[0]?.message?.content ?? "{}";
 
-    if (banned.test(content)) {
-      const second = await callGroq(
-        "Your previous output included banned phrases. Rewrite WITHOUT those substrings. Keep meaning. Obey schema. Do not mention evidence quantity or priors."
-      );
-      content = second.choices?.[0]?.message?.content ?? content;
+      if (banned.test(content)) {
+        const second = await callGroq(
+          "Your previous output included banned phrases. Rewrite WITHOUT those substrings. Keep meaning. Obey schema. Do not mention evidence quantity or priors."
+        );
+        content = second.choices?.[0]?.message?.content ?? content;
+      }
+
+      parsed = safeJsonParse(content);
+    } catch (err) {
+      console.warn("Groq call failed, returning stub forecast", err);
+      return respond(res, 200, makeStubForecast(marketId, marketTitle, p));
     }
-
-    const parsed = safeJsonParse(content);
 
 const modelProbRaw = clamp(Number(parsed?.model_prob_0_1 ?? p), 0.01, 0.99);
 const overallConf = clamp(Number(parsed?.overall_confidence ?? 0), 0, 100);
