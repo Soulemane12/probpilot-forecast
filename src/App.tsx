@@ -8,7 +8,6 @@ import Dashboard from "./pages/Dashboard";
 import Markets from "./pages/Markets";
 import MarketDetail from "./pages/MarketDetail";
 import Watchlist from "./pages/Watchlist";
-import Performance from "./pages/Performance";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -26,7 +25,6 @@ const App = () => (
             <Route path="/markets" element={<Markets />} />
             <Route path="/markets/:id" element={<MarketDetail />} />
             <Route path="/watchlist" element={<Watchlist />} />
-            <Route path="/performance" element={<Performance />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

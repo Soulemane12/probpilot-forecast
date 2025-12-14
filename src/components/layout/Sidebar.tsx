@@ -3,7 +3,6 @@ import {
   LayoutDashboard, 
   TrendingUp, 
   Star, 
-  BarChart3, 
   Settings,
   Compass
 } from 'lucide-react';
@@ -13,7 +12,6 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/markets', label: 'Markets', icon: TrendingUp },
   { to: '/watchlist', label: 'Watchlist', icon: Star },
-  { to: '/performance', label: 'Performance', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
