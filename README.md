@@ -71,3 +71,15 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Supabase setup
+
+1. Create a Supabase project and grab the Project URL + anon key.
+2. Add environment variables:
+   - Local `.env`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, optionally `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `SITE_URL=http://localhost:5173`.
+   - Vercel: same keys, but `SITE_URL=https://probpilot.vercel.app`.
+3. In the Supabase SQL editor, run `supabase/schema.sql` from this repo to create tables (`forecast_runs`, `watchlist`, `entitlements`, optional `profiles`) and row-level security policies.
+4. Auth settings in Supabase:
+   - Enable email magic links/OTP.
+   - Redirect URLs: `http://localhost:5173/auth` and `https://probpilot.vercel.app/auth`.
+5. (Optional) Insert a row into `entitlements` for each user to override the default limits.

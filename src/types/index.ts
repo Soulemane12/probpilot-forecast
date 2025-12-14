@@ -26,14 +26,14 @@ export interface Market {
 export interface ForecastRun {
   id: string;
   marketId: string;
-  marketTitle: string;
+  marketTitle?: string;
   timestamp: string;
-  marketProb: number;
+  marketProb?: number;
   modelProb: number;
   delta: number;
   confidence: ConfidenceLevel;
-  confidenceScore: number;
-  signal: number;
+  confidenceScore?: number;
+  signal?: number;
   summary: string;
   tags: string[];
 }
@@ -50,19 +50,6 @@ export interface EvidenceItem {
   reliability: number;
   stanceConfidence?: number;
   stanceRationale?: string;
-}
-
-export interface ForecastRun {
-  marketId: string;
-  marketTitle: string;
-  timestamp: string;
-  marketProb: number;
-  modelProb: number;
-  delta: number;
-  confidence: "low" | "med" | "high";
-  confidenceScore: number;
-  signal: number;
-  summary: string;
 }
 
 export interface Entitlements {

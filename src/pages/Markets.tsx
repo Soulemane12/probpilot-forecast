@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { MarketCard } from '@/components/markets/MarketCard';
 import { MarketFilters } from '@/components/markets/MarketFilters';
+import { MarketSearch } from '@/components/markets/MarketSearch';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -111,6 +112,9 @@ export default function Markets() {
             Browse and forecast on prediction markets
           </p>
         </div>
+
+        {/* URL Search */}
+        <MarketSearch />
 
         {/* Filters */}
         <MarketFilters

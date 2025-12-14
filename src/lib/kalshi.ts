@@ -17,7 +17,9 @@ export type KalshiMarketsResp = {
 
 const KALSHI_BASE =
   import.meta.env.VITE_KALSHI_BASE ||
-  (import.meta.env.DEV ? "/api/kalshi/trade-api/v2" : "https://api.elections.kalshi.com/trade-api/v2");
+  (import.meta.env.DEV ? "/api/kalshi" : "https://api.elections.kalshi.com/trade-api/v2");
+
+console.log('Kalshi base URL:', KALSHI_BASE);
 
 function buildKalshiUrl(path: string) {
   const base = KALSHI_BASE.endsWith('/') ? KALSHI_BASE.slice(0, -1) : KALSHI_BASE;

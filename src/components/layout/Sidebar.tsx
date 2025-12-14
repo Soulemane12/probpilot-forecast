@@ -9,7 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/home', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/markets', label: 'Markets', icon: TrendingUp },
   { to: '/watchlist', label: 'Watchlist', icon: Star },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -35,7 +35,8 @@ export function Sidebar() {
         <ul className="space-y-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.to || 
-              (item.to === '/markets' && location.pathname.startsWith('/markets/'));
+              (item.to === '/markets' && location.pathname.startsWith('/markets/')) ||
+              (item.to === '/home' && location.pathname === '/');
             
             return (
               <li key={item.to}>

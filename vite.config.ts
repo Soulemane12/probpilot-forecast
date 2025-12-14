@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
         rewrite: (path) => path.replace(/^\/api\/polymarket/, ""),
       },
       "/api/kalshi": {
-        target: "https://api.elections.kalshi.com",
+        target: "https://api.elections.kalshi.com/trade-api/v2",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/kalshi/, ""),
       },
