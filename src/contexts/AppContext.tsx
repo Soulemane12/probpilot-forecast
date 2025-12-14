@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Entitlements, ForecastRun, Market } from '@/types';
+import { Entitlements, ForecastRun } from '@/types';
 import { defaultEntitlements } from '@/data/entitlements';
 import { forecastRuns as initialForecasts } from '@/data/forecasts';
-import { markets } from '@/data/markets';
 
 interface AppContextType {
   entitlements: Entitlements;
@@ -12,7 +11,6 @@ interface AppContextType {
   watchlist: string[];
   toggleWatchlist: (marketId: string) => void;
   isInWatchlist: (marketId: string) => boolean;
-  getMarketById: (id: string) => Market | undefined;
   getForecastsByMarket: (marketId: string) => ForecastRun[];
 }
 
@@ -48,8 +46,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const isInWatchlist = (marketId: string) => watchlist.includes(marketId);
 
-  const getMarketById = (id: string) => markets.find(m => m.id === id);
-
   const getForecastsByMarket = (marketId: string) => 
     forecasts.filter(f => f.marketId === marketId).sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -64,7 +60,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       watchlist,
       toggleWatchlist,
       isInWatchlist,
-      getMarketById,
       getForecastsByMarket
     }}>
       {children}

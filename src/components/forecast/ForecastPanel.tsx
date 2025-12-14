@@ -122,21 +122,21 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
   return (
     <>
       <Card>
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-6">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Zap className="w-5 h-5 text-primary" />
             Forecast
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-8">
           {/* Probability comparison */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-secondary rounded-lg">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Market</p>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="p-5 bg-secondary rounded-lg">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Market</p>
               <p className="text-3xl font-bold font-mono">{formatPercent(market.marketProb)}</p>
             </div>
-            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-              <p className="text-xs text-primary uppercase tracking-wide mb-1">ProbPilot</p>
+            <div className="p-5 bg-primary/5 rounded-lg border border-primary/20">
+              <p className="text-xs text-primary uppercase tracking-wide mb-2">ProbPilot</p>
               <p className="text-3xl font-bold font-mono text-primary">
                 {latestForecast ? formatPercent(latestForecast.modelProb) : '—'}
               </p>
@@ -145,7 +145,7 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
 
           {/* Delta & Confidence */}
           {latestForecast && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <Badge className={cn("text-sm font-mono", getDeltaBgColor(latestForecast.delta))}>
                 {latestForecast.delta > 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : 
                  latestForecast.delta < 0 ? <TrendingDown className="w-3 h-3 mr-1" /> : null}
@@ -163,8 +163,8 @@ export function ForecastPanel({ market, latestForecast }: ForecastPanelProps) {
 
           {/* Trading Recommendation */}
           {recommendation && RecIcon && (
-            <div className={cn("p-4 rounded-lg", recommendation.color)}>
-              <div className="flex items-center gap-3">
+            <div className={cn("p-5 rounded-lg", recommendation.color)}>
+              <div className="flex items-center gap-4">
                 <RecIcon className="w-6 h-6" />
                 <div className="flex-1">
                   <div className="flex items-center justify-between">

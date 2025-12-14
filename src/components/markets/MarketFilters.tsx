@@ -79,9 +79,7 @@ export function MarketFilters({
           <SelectContent className="bg-popover">
             <SelectItem value="all">All Exchanges</SelectItem>
             <SelectItem value="Kalshi">Kalshi</SelectItem>
-            <SelectItem value="Metaculus">Metaculus</SelectItem>
             <SelectItem value="Polymarket">Polymarket</SelectItem>
-            <SelectItem value="Other">Other</SelectItem>
           </SelectContent>
         </Select>
 

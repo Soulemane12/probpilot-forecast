@@ -6,6 +6,8 @@
 
 @layer base {
   :root {
+    /* Compact the entire scale to match the preferred 80% zoom feel */
+    font-size: 13px;
     --background: 220 20% 97%;
     --foreground: 222 47% 11%;
 

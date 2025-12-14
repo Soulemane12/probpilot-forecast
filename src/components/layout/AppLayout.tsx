@@ -12,7 +12,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Sidebar />
       <div className="ml-64">
         <TopBar />
-        <main className="p-6">
+        <main className="p-10">
           {children}
         </main>
       </div>

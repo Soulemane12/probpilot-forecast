@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -6,23 +6,34 @@ import { MarketCard } from '@/components/markets/MarketCard';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useApp } from '@/contexts/AppContext';
-import { markets } from '@/data/markets';
+import { useLiveMarkets } from '@/hooks/useLiveMarkets';
+import { MarketExchange } from '@/types';
+
+const ALLOWED_EXCHANGES: MarketExchange[] = ['Kalshi', 'Polymarket'];
 
 export default function Watchlist() {
   const navigate = useNavigate();
   const { watchlist } = useApp();
   const [isLoading, setIsLoading] = useState(true);
+  const {
+    markets: liveMarkets,
+    isLoading: marketsLoading,
+  } = useLiveMarkets();
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 400);
     return () => clearTimeout(timer);
   }, []);
 
-  const watchedMarkets = markets.filter(m => watchlist.includes(m.id));
+  const sourceMarkets = useMemo(() => {
+    return liveMarkets.filter(m => ALLOWED_EXCHANGES.includes(m.exchange));
+  }, [liveMarkets]);
+
+  const watchedMarkets = sourceMarkets.filter(m => watchlist.includes(m.id));
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-10">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -45,14 +56,14 @@ export default function Watchlist() {
         </div>
 
         {/* Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {isLoading || (marketsLoading && sourceMarkets.length === 0) ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {Array.from({ length: 3 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : watchedMarkets.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {watchedMarkets.map((market) => (
               <MarketCard key={market.id} market={market} />
             ))}

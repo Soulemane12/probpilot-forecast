@@ -15,6 +15,7 @@ export interface Market {
   marketProb: number;
   volume24h: number;
   lastUpdated: string;
+  externalUrl?: string;
   description?: string;
 }
 

@@ -6,13 +6,14 @@ import { MarketCard } from '@/components/markets/MarketCard';
 import { MarketFilters } from '@/components/markets/MarketFilters';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { markets } from '@/data/markets';
+import { ErrorState } from '@/components/ui/error-state';
+import { useLiveMarkets } from '@/hooks/useLiveMarkets';
 import { MarketCategory, MarketExchange, MarketStatus } from '@/types';
 
 const ITEMS_PER_PAGE = 9;
+const ALLOWED_EXCHANGES: MarketExchange[] = ['Kalshi', 'Polymarket'];
 
 export default function Markets() {
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<MarketCategory | 'all'>('all');
   const [exchange, setExchange] = useState<MarketExchange | 'all'>('all');
@@ -21,13 +22,21 @@ export default function Markets() {
   const [showClosedOnly, setShowClosedOnly] = useState(false);
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+  const {
+    markets,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useLiveMarkets();
+
+  const baseMarkets = useMemo(
+    () => markets.filter(m => ALLOWED_EXCHANGES.includes(m.exchange)),
+    [markets]
+  );
 
   const filteredMarkets = useMemo(() => {
-    let result = [...markets];
+    let result = [...baseMarkets];
 
     // Search
     if (search) {
@@ -76,7 +85,7 @@ export default function Markets() {
     }
 
     return result;
-  }, [search, category, exchange, status, sort, showClosedOnly]);
+  }, [baseMarkets, search, category, exchange, status, sort, showClosedOnly]);
 
   const totalPages = Math.ceil(filteredMarkets.length / ITEMS_PER_PAGE);
   const paginatedMarkets = filteredMarkets.slice(
@@ -87,11 +96,11 @@ export default function Markets() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, category, exchange, status, sort, showClosedOnly]);
+  }, [search, category, exchange, status, sort, showClosedOnly, baseMarkets]);
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-10">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -127,15 +136,21 @@ export default function Markets() {
         </div>
 
         {/* Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {isError && filteredMarkets.length === 0 ? (
+          <ErrorState
+            title="Couldn't load markets"
+            description="Live markets failed to load. Please try again."
+            onRetry={() => refetch()}
+          />
+        ) : (isLoading || isFetching) && filteredMarkets.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : paginatedMarkets.length > 0 ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {paginatedMarkets.map((market) => (
                 <MarketCard key={market.id} market={market} />
               ))}
@@ -143,7 +158,7 @@ export default function Markets() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 pt-4">
+              <div className="flex items-center justify-center gap-2 pt-6">
                 <Button
                   variant="outline"
                   size="sm"

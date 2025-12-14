@@ -9,6 +9,7 @@ import { cn, formatPercent, formatVolume, formatDate } from '@/lib/utils';
 
 interface MarketCardProps {
   market: Market;
+  disableNavigation?: boolean;
 }
 
 const categoryColors: Record<string, string> = {
@@ -26,10 +27,20 @@ const exchangeColors: Record<string, string> = {
   Other: 'border-gray-300 text-gray-600 dark:border-gray-700 dark:text-gray-400',
 };
 
-export function MarketCard({ market }: MarketCardProps) {
+export function MarketCard({ market, disableNavigation = false }: MarketCardProps) {
   const navigate = useNavigate();
   const { isInWatchlist, toggleWatchlist } = useApp();
   const inWatchlist = isInWatchlist(market.id);
+  const hasExternalLink = Boolean(market.externalUrl);
+
+  const goToMarket = () => {
+    if (disableNavigation) return;
+    if (hasExternalLink && typeof window !== 'undefined') {
+      window.open(market.externalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    navigate(`/markets/${market.id}`);
+  };
 
   const handleWatchlistClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -37,14 +48,14 @@ export function MarketCard({ market }: MarketCardProps) {
   };
 
   return (
-    <Card 
+    <Card
       className={cn(
-        "p-5 cursor-pointer transition-all duration-200 hover:shadow-card-hover hover:border-primary/20",
+        "p-6 cursor-pointer transition-all duration-200 hover:shadow-card-hover hover:border-primary/20",
         market.status === 'closed' && "opacity-75"
       )}
-      onClick={() => navigate(`/markets/${market.id}`)}
+      onClick={goToMarket}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-3 mb-5">
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-card-foreground line-clamp-2 leading-snug">
             {market.title}
@@ -64,7 +75,7 @@ export function MarketCard({ market }: MarketCardProps) {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
         <Badge variant="secondary" className={cn("text-xs font-medium", categoryColors[market.category])}>
           {market.category}
         </Badge>
@@ -78,7 +89,7 @@ export function MarketCard({ market }: MarketCardProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5" />
           <span>{formatDate(market.endDate)}</span>
@@ -89,7 +100,7 @@ export function MarketCard({ market }: MarketCardProps) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-border">
+      <div className="flex items-center justify-between pt-5 border-t border-border">
         <div>
           <p className="text-xs text-muted-foreground mb-0.5">Market Prob</p>
           <p className="text-2xl font-semibold font-mono tracking-tight">
@@ -100,7 +111,7 @@ export function MarketCard({ market }: MarketCardProps) {
           size="sm" 
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/markets/${market.id}`);
+            goToMarket();
           }}
         >
           Open
@@ -108,7 +119,7 @@ export function MarketCard({ market }: MarketCardProps) {
       </div>
 
       {/* Mini sparkline placeholder */}
-      <div className="mt-3 h-6 bg-muted/50 rounded flex items-end px-1 gap-px">
+      <div className="mt-5 h-6 bg-muted/50 rounded flex items-end px-1 gap-px">
         {Array.from({ length: 20 }).map((_, i) => (
           <div 
             key={i} 

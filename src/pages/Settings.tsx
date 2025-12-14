@@ -120,7 +120,7 @@ export default function Settings() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-10 max-w-4xl">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -159,8 +159,8 @@ export default function Settings() {
             <CardTitle className="text-lg">Usage</CardTitle>
             <CardDescription>Your current usage for today</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
+          <CardContent className="space-y-10">
+            <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span>Forecasts</span>
                 <span className="font-mono">
@@ -170,7 +170,7 @@ export default function Settings() {
               <Progress value={forecastUsagePercent} className="h-2" />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span>Evidence Scans</span>
                 <span className="font-mono">
@@ -252,7 +252,7 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg mb-6">
+            <div className="flex items-center justify-between p-6 bg-muted/50 rounded-lg mb-10">
               <div>
                 <p className="font-medium">Current Plan</p>
                 <p className="text-2xl font-bold">{entitlements.plan}</p>
@@ -269,7 +269,7 @@ export default function Settings() {
             </div>
 
             {/* Plan cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {plans.map((plan) => (
                 <div
                   key={plan.id}
@@ -287,15 +287,15 @@ export default function Settings() {
                     </Badge>
                   )}
 
-                  <div className="text-center mb-4">
+                  <div className="text-center mb-6">
                     <h3 className="font-semibold text-lg">{plan.name}</h3>
-                    <div className="mt-2">
+                    <div className="mt-3">
                       <span className="text-3xl font-bold">{plan.price}</span>
                       <span className="text-muted-foreground">{plan.period}</span>
                     </div>
                   </div>
 
-                  <ul className="space-y-2 mb-6">
+                  <ul className="space-y-3 mb-8">
                     {plan.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
                         <Check className="w-4 h-4 text-positive shrink-0 mt-0.5" />
@@ -340,8 +340,8 @@ export default function Settings() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-muted/50 rounded-lg text-center">
+          <div className="space-y-6 py-4">
+            <div className="p-6 bg-muted/50 rounded-lg text-center">
               <p className="text-sm text-muted-foreground mb-1">You're upgrading to</p>
               <p className="text-2xl font-bold">{selectedPlan} Plan</p>
               <p className="text-lg font-mono">

@@ -31,8 +31,8 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-6 px-3">
-        <ul className="space-y-1">
+      <nav className="flex-1 py-8 px-3">
+        <ul className="space-y-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.to || 
               (item.to === '/markets' && location.pathname.startsWith('/markets/'));
@@ -42,7 +42,7 @@ export function Sidebar() {
                 <NavLink
                   to={item.to}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200",
                     isActive 
                       ? "bg-sidebar-accent text-sidebar-accent-foreground" 
                       : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50"

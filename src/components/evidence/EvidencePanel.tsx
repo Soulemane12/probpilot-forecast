@@ -51,7 +51,7 @@ export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
   return (
     <>
       <Card>
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-6">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <FileSearch className="w-5 h-5 text-primary" />
@@ -62,7 +62,7 @@ export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           {/* Run button */}
           <Button 
             variant="outline"
@@ -90,15 +90,15 @@ export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
 
           {/* Evidence list */}
           {evidence.length > 0 ? (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-4 max-h-96 overflow-y-auto">
               {evidence.map((item) => {
                 const stance = stanceConfig[item.stance];
                 const StanceIcon = stance.icon;
                 
                 return (
-                  <div 
+                  <div
                     key={item.id}
-                    className="p-3 bg-secondary/50 rounded-lg border border-border space-y-2"
+                    className="p-4 bg-secondary/50 rounded-lg border border-border space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -130,17 +130,17 @@ export function EvidencePanel({ evidence, marketId }: EvidencePanelProps) {
               })}
             </div>
           ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              <FileSearch className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <div className="py-12 text-center text-muted-foreground">
+              <FileSearch className="w-8 h-8 mx-auto mb-3 opacity-50" />
               <p className="text-sm">No evidence scanned yet</p>
-              <p className="text-xs">Run an evidence scan to find sources</p>
+              <p className="text-xs mt-1">Run an evidence scan to find sources</p>
             </div>
           )}
 
           {/* Citations */}
           {evidence.length > 0 && (
-            <div className="pt-4 border-t border-border">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Citations</p>
+            <div className="pt-6 border-t border-border">
+              <p className="text-xs font-medium text-muted-foreground mb-3">Citations</p>
               <div className="flex flex-wrap gap-2">
                 {evidence.slice(0, 6).map((item, i) => (
                   <a
