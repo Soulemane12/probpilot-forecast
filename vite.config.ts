@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/kalshi/, ""),
       },
-      "/api/tavily-search": {
+      "/api/evidence-scan": {
         target: "http://localhost:3002",
         changeOrigin: true,
       },

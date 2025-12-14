@@ -40,6 +40,8 @@ export interface EvidenceItem {
   snippet: string;
   timestamp: string;
   reliability: number;
+  stanceConfidence?: number;
+  stanceRationale?: string;
 }
 
 export interface Entitlements {

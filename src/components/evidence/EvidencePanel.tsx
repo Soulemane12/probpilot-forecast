@@ -64,54 +64,31 @@ export function EvidencePanel({ evidence, marketId, marketTitle }: EvidencePanel
     setError(null);
 
     try {
-      const res = await fetch('/api/tavily-search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const res = await fetch("/api/evidence-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: `${marketTitle} prediction market evidence news`,
+          marketId,
+          marketTitle,
+          query: `${marketTitle} latest update official statement report`,
           max_results: 6,
-          search_depth: 'basic',
-          include_answer: false,
-          include_raw_content: false,
         }),
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const tavilyItems: EvidenceItem[] = Array.isArray(data.evidence) ? data.evidence : [];
+
+      if (tavilyItems.length === 0) {
+        toast({
+          title: "No new sources found",
+          description: "Try a different search query or check back later.",
+        });
+        return; // Keep existing items
       }
 
-      const data = (await res.json()) as TavilySearchResponse;
-      const results = Array.isArray(data.results) ? data.results : [];
-
-      const tavilyItems: EvidenceItem[] = results.map((r, index) => {
-        let hostname = 'Web';
-        try {
-          hostname = new URL(r.url).hostname.replace(/^www\./, '');
-        } catch {
-          // ignore URL parse errors
-        }
-
-        const reliability = typeof r.score === 'number'
-          ? Math.round(Math.max(0, Math.min(1, r.score)) * 100)
-          : 70;
-
-        return {
-          id: `tavily-${marketId}-${index}`,
-          marketId,
-          sourceName: hostname,
-          title: r.title || r.url,
-          url: r.url,
-          stance: 'neutral',
-          snippet: r.content || '',
-          timestamp: new Date().toISOString(),
-          reliability,
-        };
-      });
-
-      console.log('Tavily results:', results);
-      console.log('Mapped evidence items:', tavilyItems);
+      console.log('Evidence scan results:', tavilyItems);
 
       setItems(tavilyItems);
       setEntitlements(prev => ({
@@ -147,7 +124,7 @@ export function EvidencePanel({ evidence, marketId, marketTitle }: EvidencePanel
               Evidence
             </CardTitle>
             <Badge variant="outline" className="text-xs font-normal">
-              VERS Evidence Agent
+              Tavily Evidence Search
             </Badge>
           </div>
         </CardHeader>
@@ -184,10 +161,6 @@ export function EvidencePanel({ evidence, marketId, marketTitle }: EvidencePanel
           )}
 
           {/* Evidence list */}
-          {(() => {
-            console.log('Rendering evidence items, count:', items.length);
-            return null;
-          })()}
           {items.length > 0 ? (
             <div className="space-y-4 max-h-96 overflow-y-auto">
               {items.map((item) => {
@@ -213,6 +186,12 @@ export function EvidencePanel({ evidence, marketId, marketTitle }: EvidencePanel
                     <p className="text-xs text-muted-foreground line-clamp-2">
                       {item.snippet}
                     </p>
+                    
+                    {item.stanceRationale && (
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        ({item.stanceConfidence || 0}%) {item.stanceRationale}
+                      </p>
+                    )}
                     
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
