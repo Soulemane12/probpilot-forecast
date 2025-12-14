@@ -29,6 +29,7 @@ type EntitlementsRow = {
 };
 
 function mapForecastRow(row: ForecastRow): ForecastRun {
+  const confidence = row.confidence as 'low' | 'med' | 'high';
   return {
     id: row.id,
     marketId: row.market_id,
@@ -37,7 +38,7 @@ function mapForecastRow(row: ForecastRow): ForecastRun {
     marketProb: row.market_prob ?? undefined,
     modelProb: row.model_prob,
     delta: row.delta,
-    confidence: row.confidence,
+    confidence: ['low', 'med', 'high'].includes(confidence) ? confidence : 'med',
     confidenceScore: row.confidence_score ?? undefined,
     signal: row.signal ?? undefined,
     summary: row.summary,
@@ -47,8 +48,9 @@ function mapForecastRow(row: ForecastRow): ForecastRun {
 
 function mapEntitlementsRow(row: EntitlementsRow | null): Entitlements {
   if (!row) return defaultEntitlements;
+  const plan = row.plan as 'Free' | 'Pro' | 'Team';
   return {
-    plan: row.plan ?? 'Free',
+    plan: ['Free', 'Pro', 'Team'].includes(plan) ? plan : 'Free',
     forecastsUsedToday: row.forecasts_used_today ?? 0,
     forecastsLimit: row.forecasts_limit ?? defaultEntitlements.forecastsLimit,
     evidenceRunsUsedToday: row.evidence_runs_used_today ?? 0,
